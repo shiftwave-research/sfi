@@ -2153,6 +2153,12 @@
 
         function showWelcomeBack() {
             hideContinueBtn();
+            // Returning participants: hide usage count question, auto-show conditional block
+            // (we already know they're non-first-timers from the key table)
+            const usageBlock = document.getElementById('caaUsageCountBlock');
+            if (usageBlock) usageBlock.classList.add('hidden');
+            const caaC = document.getElementById('caaConditional');
+            if (caaC) caaC.classList.remove('hidden');
             // Names stay editable until submission — wrong match can be corrected
             // Do NOT lock timing here — returning users on a fresh load should be
             // able to choose pre or post (e.g., catching up a missed post-session).
@@ -2435,6 +2441,8 @@
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
+            lockTiming();   // Prevent timing toggle during async submission (race condition fix)
+            lockNames();    // Freeze identity fields during submission
             
             const payload = {
                 action: 'submit',
@@ -2509,6 +2517,8 @@
             } catch (error) {
                 console.error('Submit error:', error);
                 alert('Error submitting. Please try again.');
+                unlockTiming();  // Restore interactivity on failure
+                unlockNames();
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit Check-In';
             }
@@ -2564,7 +2574,7 @@
                 <div class="section addon-pre-only hidden" id="addonItem_caaPreUsage">
                     <div class="section-title">Usage &amp; Motivation</div>
 
-                    <div class="addon-question-block">
+                    <div class="addon-question-block" id="caaUsageCountBlock">
                         <div class="addon-question">How many times have you used the Shiftwave chair before today?</div>
                         <div class="addon-ss-group" data-field="caaUsageCount" data-conditional-target="caaConditional">
                             <button class="addon-ss-btn" data-value="first_time">This is my first time</button>
@@ -2605,8 +2615,8 @@
 
                     <div class="addon-conditional hidden" id="caaConditional">
                         <div class="addon-question-block">
-                            <div class="addon-question">When do you typically use Shiftwave?</div>
-                            <div class="addon-ss-group" data-field="caaTiming">
+                            <div class="addon-question">When do you typically use Shiftwave? <span style="font-size:0.75em;color:#888;font-weight:400;">Select all that apply</span></div>
+                            <div class="addon-ss-group" data-field="caaTiming" data-multiselect="true" data-exclusive="no_pattern">
                                 <button class="addon-ss-btn" data-value="morning">Morning (to start the day)</button>
                                 <button class="addon-ss-btn" data-value="mid_morning">Mid-morning (work break)</button>
                                 <button class="addon-ss-btn" data-value="lunch">Lunch break</button>
@@ -2617,8 +2627,8 @@
                             </div>
                         </div>
                         <div class="addon-question-block">
-                            <div class="addon-question">What keeps you coming back to Shiftwave?</div>
-                            <div class="addon-ss-group" data-field="caaKeepsComing">
+                            <div class="addon-question">What keeps you coming back to Shiftwave? <span style="font-size:0.75em;color:#888;font-weight:400;">Select all that apply</span></div>
+                            <div class="addon-ss-group" data-field="caaKeepsComing" data-multiselect="true">
                                 <button class="addon-ss-btn" data-value="effective">It&apos;s effective at reducing my stress / anxiety</button>
                                 <button class="addon-ss-btn" data-value="convenient">It&apos;s quick and convenient</button>
                                 <button class="addon-ss-btn" data-value="fits_routine">It fits into my work routine easily</button>
@@ -3129,6 +3139,11 @@
                 const both   = addon.required.both || [];
                 required.push(...fields, ...both);
             });
+            // Returning participants skip the usage count question — not required for them
+            if (participantStatus === 'returning') {
+                const idx = required.indexOf('caaUsageCount');
+                if (idx > -1) required.splice(idx, 1);
+            }
             return required;
         }
 
@@ -3137,18 +3152,43 @@
 
         // ========== ADDON EVENT DELEGATION ==========
         document.getElementById('surveyContainer').addEventListener('click', function(e) {
-            // Single-select
+            // Single-select or multi-select
             const ssBtn = e.target.closest('.addon-ss-btn');
             if (ssBtn) {
                 const group = ssBtn.closest('.addon-ss-group');
                 if (group) {
-                    group.querySelectorAll('.addon-ss-btn').forEach(b => b.classList.remove('selected'));
-                    ssBtn.classList.add('selected');
-                    addonValues[group.dataset.field] = ssBtn.dataset.value;
+                    const isMulti = group.dataset.multiselect === 'true';
+                    const exclusiveVal = group.dataset.exclusive || null;
+                    const clickedVal = ssBtn.dataset.value;
+
+                    if (isMulti) {
+                        if (exclusiveVal && clickedVal === exclusiveVal) {
+                            // Exclusive option selected — clear all others, select only this
+                            group.querySelectorAll('.addon-ss-btn').forEach(b => b.classList.remove('selected'));
+                            ssBtn.classList.add('selected');
+                        } else {
+                            // Regular multi-select toggle — deselect exclusive if active
+                            if (exclusiveVal) {
+                                group.querySelectorAll(`.addon-ss-btn[data-value="${exclusiveVal}"]`)
+                                    .forEach(b => b.classList.remove('selected'));
+                            }
+                            ssBtn.classList.toggle('selected');
+                        }
+                        // Collect all selected values as pipe-separated string
+                        const selected = [...group.querySelectorAll('.addon-ss-btn.selected')]
+                            .map(b => b.dataset.value);
+                        addonValues[group.dataset.field] = selected.join('|');
+                    } else {
+                        // Original single-select behaviour
+                        group.querySelectorAll('.addon-ss-btn').forEach(b => b.classList.remove('selected'));
+                        ssBtn.classList.add('selected');
+                        addonValues[group.dataset.field] = clickedVal;
+                    }
+
                     // Conditional reveal
                     if (group.dataset.conditionalTarget) {
                         const target = document.getElementById(group.dataset.conditionalTarget);
-                        if (target) target.classList.toggle('hidden', ssBtn.dataset.value === 'first_time');
+                        if (target) target.classList.toggle('hidden', clickedVal === 'first_time');
                     }
                     updateProgress();
                 }
@@ -3363,6 +3403,11 @@
             consent = null;
             participantAge = null;
             participantSex = null;
+            // Restore first-session question visibility for fresh lookup
+            const usageBlock = document.getElementById('caaUsageCountBlock');
+            if (usageBlock) usageBlock.classList.remove('hidden');
+            const caaCond = document.getElementById('caaConditional');
+            if (caaCond) caaCond.classList.add('hidden');
         }
 
         function updateContinueBtn() {
