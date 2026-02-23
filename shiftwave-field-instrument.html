@@ -1527,7 +1527,7 @@
             Your responses will be collected by Shiftwave and used for research and performance monitoring purposes. Your name will be replaced with an anonymous participant ID &mdash; no personally identifiable information will appear in any shared data or reports.<br><br>
             <strong>Sharing with your organization:</strong> Aggregated, de-identified results may be shared with the organization hosting this study for the purpose of evaluating Shiftwave.<br><br>
             <strong>Research and publication:</strong> Data may also be used in aggregate, de-identified form for Shiftwave&rsquo;s internal research and, potentially, future publication. No individual will be identifiable in any published output.<br><br>
-            <strong>Data retention:</strong> Data will be retained for a minimum of 2 years and may be held longer for research continuity. You may request deletion of your record at any time by contacting privacy@shiftwave.com.<br><br>
+            <strong>Data retention:</strong> Data will be retained for a minimum of 2 years and may be held longer for research continuity. You may request deletion of your record at any time by contacting <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="18686a716e797b61586b70717e6c6f796e7d367b7775">[email&#160;protected]</a>.<br><br>
             Participation is voluntary and you may stop at any time without consequence.<br><br>
             <strong>Risks:</strong> Participating involves minimal risk. The primary risk is potential breach of confidentiality; reasonable safeguards are in place to reduce this risk. By proceeding, you also acknowledge that you have reviewed the <a href="https://shiftwave.co/pages/shiftwave-contraindications" target="_blank" style="color:#4ade80;">contraindications to Shiftwave use</a> and confirm they do not apply to you.<br><br>
             By checking the box below you confirm you understand and agree to these terms.</p>
@@ -1863,7 +1863,7 @@
         <button class="submit-btn incomplete" id="submitBtn" onclick="handleSubmitClick()">Submit Check-In</button>
     </div>
     
-    <script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     document.addEventListener('DOMContentLoaded', function() {
         // ========== CONFIGURATION ==========
         const CONFIG = {
@@ -1975,6 +1975,12 @@
                     showWelcomeBack();
                 } else if (result.status === 'new') {
                     participantId = null;
+                    consent = null;
+                    showConsentGate(timing);
+                } else {
+                    // Unexpected status (error, misconfigured script, etc.)
+                    // Fall through as new participant rather than hanging permanently
+                    participantStatus = 'new';
                     consent = null;
                     showConsentGate(timing);
                 }
@@ -3604,14 +3610,4 @@
                             <div class="example-marker" style="left: 78%; top: 22%;"></div>
                             <div class="example-marker-label" style="left: 60%; top: 8%;">Happy &amp; energized</div>
                             <div class="example-marker" style="left: 72%; top: 78%;"></div>
-                            <div class="example-marker-label" style="left: 52%; top: 85%;">Calm &amp; content</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <button class="modal-got-it" onclick="closeTutorial()">Got it</button>
-        </div>
-    </div>
-
-</body>
-</html>
+                            <div class="example-marker-label" style="left: 52%; top: 85%;">Calm &amp; content<
