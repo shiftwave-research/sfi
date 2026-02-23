@@ -2569,7 +2569,7 @@
             caaPreUsage: {
                 insertAfter: 'surveyBodyStart',
                 timing: 'pre',
-                required: { pre: ['caaUsageCount', 'caaPrimaryReason', 'caaPromptedBy'] },
+                required: { pre: ['caaUsageCount', 'caaPromptedBy'] },
                 html: `
                 <div class="section addon-pre-only hidden" id="addonItem_caaPreUsage">
                     <div class="section-title">Usage &amp; Motivation</div>
@@ -2586,29 +2586,17 @@
                     </div>
 
                     <div class="addon-question-block">
-                        <div class="addon-question">What is your PRIMARY reason for using Shiftwave today?</div>
-                        <div class="addon-ss-group" data-field="caaPrimaryReason">
-                            <button class="addon-ss-btn" data-value="stress">To reduce work-related stress</button>
-                            <button class="addon-ss-btn" data-value="anxiety">To manage general anxiety</button>
-                            <button class="addon-ss-btn" data-value="relax">To relax / unwind after a busy day</button>
-                            <button class="addon-ss-btn" data-value="focus">To improve focus or mental clarity</button>
-                            <button class="addon-ss-btn" data-value="physical">To relieve physical tension or muscle tightness</button>
-                            <button class="addon-ss-btn" data-value="break">To take a wellness break during work</button>
-                            <button class="addon-ss-btn" data-value="curiosity">Curiosity / trying it out</button>
-                            <button class="addon-ss-btn" data-value="other">Other</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">What prompted you to use Shiftwave TODAY?</div>
+                        <div class="addon-question">What brought you to Shiftwave today?</div>
                         <div class="addon-ss-group" data-field="caaPromptedBy">
-                            <button class="addon-ss-btn" data-value="stressed">Feeling stressed or anxious</button>
-                            <button class="addon-ss-btn" data-value="preventative">Preventative / regular wellness routine</button>
+                            <button class="addon-ss-btn" data-value="stress_anxiety">Stress or anxiety</button>
+                            <button class="addon-ss-btn" data-value="relax">To relax / unwind</button>
+                            <button class="addon-ss-btn" data-value="focus">To improve focus or mental clarity</button>
                             <button class="addon-ss-btn" data-value="physical">Physical tension or discomfort</button>
-                            <button class="addon-ss-btn" data-value="focus">Trouble focusing</button>
-                            <button class="addon-ss-btn" data-value="break">Scheduled break time</button>
+                            <button class="addon-ss-btn" data-value="break">Wellness or scheduled break</button>
+                            <button class="addon-ss-btn" data-value="preventative">Preventative / regular routine</button>
                             <button class="addon-ss-btn" data-value="available">Saw the chair was available</button>
                             <button class="addon-ss-btn" data-value="recommended">Recommended by someone</button>
+                            <button class="addon-ss-btn" data-value="curiosity">Curiosity / trying it out</button>
                             <button class="addon-ss-btn" data-value="other">Other</button>
                         </div>
                     </div>
