@@ -1905,7 +1905,7 @@
         }
 
         // ========== SESSION ID ==========
-        if (!sessionStorage.getItem('sfi_session_id')) {
+        function generateSessionId() {
             const id = (crypto.randomUUID)
                 ? crypto.randomUUID()
                 : 'xxxx-xxxx-4xxx-yxxx'.replace(/[xy]/g, c => {
@@ -1913,8 +1913,9 @@
                     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
                   });
             sessionStorage.setItem('sfi_session_id', id);
+            return id;
         }
-        const sessionId = sessionStorage.getItem('sfi_session_id');
+        let sessionId = sessionStorage.getItem('sfi_session_id') || generateSessionId();
 
         // ========== STATE ==========
         let formData = {
@@ -3269,6 +3270,10 @@
 
         // ========== RESET ==========
         function resetForm() {
+            // sessionId persists across pre→post (same session) but regenerates on Start New Session (post→new)
+            if (timing === 'post') {
+                sessionId = generateSessionId();
+            }
             // NOTE: sessionId, participantId, participantStatus, and consent are intentionally NOT cleared.
             // They must persist across preÃ¢â€ â€™post within the same session.
             
