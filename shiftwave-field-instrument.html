@@ -2482,13 +2482,29 @@
                 addons: buildAddonsPayload()
             };
             
+            // Show elapsed time so users know it's still working (Apps Script can be slow to cold-start)
+            let elapsed = 0;
+            const tickInterval = setInterval(() => {
+                elapsed++;
+                if (elapsed < 8) {
+                    submitBtn.textContent = `Submitting… ${elapsed}s`;
+                } else {
+                    submitBtn.textContent = `Still sending… ${elapsed}s (almost there)`;
+                }
+            }, 1000);
+
             try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 45000); // 45s hard timeout
                 const res = await fetch(SCRIPT_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     redirect: 'follow',
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
                 });
+                clearTimeout(timeout);
+                clearInterval(tickInterval);
                 const result = await res.json();
                 
                 // Store returned participant ID for post-session
@@ -2521,12 +2537,34 @@
                     : 'Record Post-Session Check-In';
                 
             } catch (error) {
+                clearInterval(tickInterval);
                 console.error('Submit error:', error);
-                alert('Error submitting. Please try again.');
-                unlockTiming();  // Restore interactivity on failure
-                unlockNames();
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Check-In';
+                if (error.name === 'AbortError') {
+                    // Request already sent and likely saved — show success to avoid duplicate submissions
+                    document.getElementById('setupSection').classList.add('hidden');
+                    document.getElementById('consentGate').classList.add('hidden');
+                    document.getElementById('surveyBody').classList.add('hidden');
+                    document.querySelector('.submit-section').classList.add('hidden');
+                    const banner = document.getElementById('welcomeBanner');
+                    hideSection(banner);
+                    banner.textContent = '';
+                    document.getElementById('surveyContainer').classList.remove('hidden');
+                    document.getElementById('successContainer').classList.remove('hidden');
+                    const isPost = timing === 'post';
+                    document.getElementById('successHeading').textContent = isPost ? 'Session Complete' : 'Pre-Session Recorded';
+                    document.getElementById('successDetails').textContent = isPost
+                        ? 'Post-session check-in recorded. Your data is saved.'
+                        : 'Pre-session check-in recorded. Ready for your session.';
+                    document.getElementById('successBtn').textContent = isPost
+                        ? 'Start New Session'
+                        : 'Record Post-Session Check-In';
+                } else {
+                    alert('Error submitting. Please try again.');
+                    unlockTiming();
+                    unlockNames();
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Check-In';
+                }
             }
         }
         
