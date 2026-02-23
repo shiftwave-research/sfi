@@ -1906,16 +1906,15 @@
 
         // ========== SESSION ID ==========
         function generateSessionId() {
-            const id = (crypto.randomUUID)
+            return (crypto.randomUUID)
                 ? crypto.randomUUID()
                 : 'xxxx-xxxx-4xxx-yxxx'.replace(/[xy]/g, c => {
                     const r = Math.random() * 16 | 0;
                     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
                   });
-            sessionStorage.setItem('sfi_session_id', id);
-            return id;
         }
-        let sessionId = sessionStorage.getItem('sfi_session_id') || generateSessionId();
+        // Always fresh on page load — pre→post continuity held in memory, not sessionStorage
+        let sessionId = generateSessionId();
 
         // ========== STATE ==========
         let formData = {
