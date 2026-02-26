@@ -1867,20 +1867,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         // ========== CONFIGURATION ==========
         const CONFIG = {
-            INTERNAL_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwRxN9SYtjDMwAUcEEDs9w2UYT3o-Pq28b-JygOnu7k9yHVY0fyfuzVv5DG0u7vaGdW/exec',
+            SUPABASE_URL: 'https://kovjwdntsdiwjawewfhs.supabase.co/functions/v1/sfi',
+            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtvdmp3ZG50c2Rpd2phd2V3ZmhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjg4NTYsImV4cCI6MjA4NzIwNDg1Nn0.rrXI2VLR6gIoWLMI24g1ig_bZ21C3wcGg2noq0iC0E4',
             DEPLOYMENT_PRESETS: {
                 'CAA_Feb2026': {
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycby3yKXjAPb2okeBXM89moq2dZ5DBbJtEMU4-MCitB9CHEUSd-RkloIWUnrauO4wsP5R/exec',
                     displayName: 'CAA',
                     addons: ['caaPreUsage', 'caaPost']
                 },
                 'Spirit_Mar2026': {
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycbxHl63W55vPzx-qGsOwEuRgWTMEqXXFhi3lnXq1Hl8Ej4M2oiEEYYhbkWKrJLIHyBGL/exec',
                     displayName: 'Washington Spirit',
                     addons: ['soreness', 'menstrual']
                 },
                 'McLaren_Mar2026': {
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycbwr0D74p1Fn08vdhCwqKPLv5FXHfhlWi4WyKHC7YdINVa_HeyUJlriDmvsXBT2UHnmE/exec',
                     displayName: 'McLaren Racing',
                     addons: ['mclarenPreSection', 'mclarenSoreness', 'mclarenPerfReadiness', 'mclarenPost']
                 }
@@ -1892,7 +1890,7 @@
         const deploymentId = urlParams.get('deployment') || '';
         const isFieldMode = deploymentId !== '';
         const activePreset = isFieldMode ? (CONFIG.DEPLOYMENT_PRESETS[deploymentId] || {}) : {};
-        const SCRIPT_URL = activePreset.scriptUrl || CONFIG.INTERNAL_SCRIPT_URL;
+        const SCRIPT_URL = CONFIG.SUPABASE_URL;
         const activeAddons = isFieldMode ? (activePreset.addons || []) : [];
 
         // Show org name in header if field mode
@@ -1961,8 +1959,10 @@
             try {
                 const res = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+                    },
                     body: JSON.stringify({ action: 'lookup', participantName: name, deploymentId })
                 });
                 const result = await res.json();
@@ -2499,8 +2499,10 @@
                 const timeout = setTimeout(() => controller.abort(), 45000); // 45s hard timeout
                 const res = await fetch(SCRIPT_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+                    },
                     body: JSON.stringify(payload),
                     signal: controller.signal
                 });
