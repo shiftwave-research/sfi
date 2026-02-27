@@ -2469,7 +2469,6 @@
                 participantName: participantName,
                 deploymentId: deploymentId,
                 ...(activePreset.studyTag ? { studyTag: activePreset.studyTag } : {}),
-                ...(activePreset.studyTag ? { studyTag: activePreset.studyTag } : {}),
                 sessionId: sessionId,
                 consent: consent || 'yes',
                 age: ageToSubmit,
@@ -2664,9 +2663,14 @@
 
         function renderAddonHTML(addonKey, addon) {
             if (addon.html) return addon.html; // backward-compat: legacy string entries pass through unchanged
-            var timingClass = addon.timing === 'pre'  ? ' addon-pre-only'
-                            : addon.timing === 'post' ? ' addon-post-only'
-                            : '';
+            // timing:'both' addons (e.g. atomic VAS sliders) render without a wrapper —
+            // they sit inline with the SSS VAS items and are always visible.
+            if (addon.timing === 'both') {
+                return addon.questions.map(renderQuestion).join('\n');
+            }
+            // timing:'pre' and 'post' addons get a section wrapper, hidden by default,
+            // shown/hidden by updateAddonVisibility() when timing is toggled.
+            var timingClass = addon.timing === 'pre' ? ' addon-pre-only' : ' addon-post-only';
             var inner = addon.questions.map(renderQuestion).join('\n');
             return '<div class="section' + timingClass + ' hidden" id="addonItem_' + addonKey + '">\n' + inner + '\n                </div>';
         }
