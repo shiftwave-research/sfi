@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shiftwave Session Survey</title>
+    <title>Shiftwave Session Survey v4</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
@@ -1865,24 +1865,36 @@
     
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     document.addEventListener('DOMContentLoaded', function() {
+        // ========== BACKEND ==========
+        // Global infrastructure constants — same for all deployments.
+        const SUPABASE_URL      = 'https://kovjwdntsdiwjawewfhs.supabase.co/functions/v1/sfi';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtvdmp3ZG50c2Rpd2phd2V3ZmhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjg4NTYsImV4cCI6MjA4NzIwNDg1Nn0.rrXI2VLR6gIoWLMI24g1ig_bZ21C3wcGg2noq0iC0E4';
+
         // ========== CONFIGURATION ==========
+        // Deployment routing — add new deployments here, nothing else changes.
         const CONFIG = {
-            INTERNAL_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwRxN9SYtjDMwAUcEEDs9w2UYT3o-Pq28b-JygOnu7k9yHVY0fyfuzVv5DG0u7vaGdW/exec',
             DEPLOYMENT_PRESETS: {
                 'CAA_Feb2026': {
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycby3yKXjAPb2okeBXM89moq2dZ5DBbJtEMU4-MCitB9CHEUSd-RkloIWUnrauO4wsP5R/exec',
                     displayName: 'CAA',
                     addons: ['caaPreUsage', 'caaPost']
                 },
                 'Spirit_Mar2026': {
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycbxHl63W55vPzx-qGsOwEuRgWTMEqXXFhi3lnXq1Hl8Ej4M2oiEEYYhbkWKrJLIHyBGL/exec',
                     displayName: 'Washington Spirit',
                     addons: ['soreness', 'menstrual']
                 },
                 'McLaren_Mar2026': {
-                    scriptUrl: 'https://script.google.com/macros/s/AKfycbwr0D74p1Fn08vdhCwqKPLv5FXHfhlWi4WyKHC7YdINVa_HeyUJlriDmvsXBT2UHnmE/exec',
                     displayName: 'McLaren Racing',
                     addons: ['mclarenPreSection', 'mclarenSoreness', 'mclarenPerfReadiness', 'mclarenPost']
+                },
+                'Randi_SSS_Trial': {
+                    displayName: 'Randi',
+                    addons: [],
+                    // Core SSS only — no addon questions.
+                    // studyTag is included in every submission to tag this data
+                    // as the Randi stopgap trial, separate from field deployments.
+                    // TODO: Replace participantName lookup with Randi app userId.
+                    // TODO: Add protocolName field when protocol integration is scoped.
+                    studyTag: 'randi_sss_trial_2026'
                 }
             }
         };
@@ -1892,7 +1904,6 @@
         const deploymentId = urlParams.get('deployment') || '';
         const isFieldMode = deploymentId !== '';
         const activePreset = isFieldMode ? (CONFIG.DEPLOYMENT_PRESETS[deploymentId] || {}) : {};
-        const SCRIPT_URL = activePreset.scriptUrl || CONFIG.INTERNAL_SCRIPT_URL;
         const activeAddons = isFieldMode ? (activePreset.addons || []) : [];
 
         // Show org name in header if field mode
@@ -1906,15 +1917,16 @@
 
         // ========== SESSION ID ==========
         function generateSessionId() {
-            return (crypto.randomUUID)
+            const id = (crypto.randomUUID)
                 ? crypto.randomUUID()
                 : 'xxxx-xxxx-4xxx-yxxx'.replace(/[xy]/g, c => {
                     const r = Math.random() * 16 | 0;
                     return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
                   });
+            sessionStorage.setItem('sfi_session_id', id);
+            return id;
         }
-        // Always fresh on page load — pre→post continuity held in memory, not sessionStorage
-        let sessionId = generateSessionId();
+        let sessionId = sessionStorage.getItem('sfi_session_id') || generateSessionId();
 
         // ========== STATE ==========
         let formData = {
@@ -1958,10 +1970,12 @@
         async function lookupParticipant(name) {
             if (!name) return;
             try {
-                const res = await fetch(SCRIPT_URL, {
+                const res = await fetch(SUPABASE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    },
                     body: JSON.stringify({ action: 'lookup', participantName: name, deploymentId })
                 });
                 const result = await res.json();
@@ -2159,12 +2173,19 @@
 
         function showWelcomeBack() {
             hideContinueBtn();
-            // Returning participants: hide usage count question, auto-show conditional block
+            // Returning participants: hide onboarding-only questions, auto-show conditional blocks
             // (we already know they're non-first-timers from the key table)
             const usageBlock = document.getElementById('caaUsageCountBlock');
             if (usageBlock) usageBlock.classList.add('hidden');
             const caaC = document.getElementById('caaConditional');
             if (caaC) caaC.classList.remove('hidden');
+            // McLaren: hide role + usage count, auto-reveal conditional
+            const mclRoleBlock = document.getElementById('mclRoleBlock');
+            if (mclRoleBlock) mclRoleBlock.classList.add('hidden');
+            const mclUsageBlock = document.getElementById('mclUsageCountBlock');
+            if (mclUsageBlock) mclUsageBlock.classList.add('hidden');
+            const mclC = document.getElementById('mclConditional');
+            if (mclC) mclC.classList.remove('hidden');
             // Names stay editable until submission — wrong match can be corrected
             // Do NOT lock timing here — returning users on a fresh load should be
             // able to choose pre or post (e.g., catching up a missed post-session).
@@ -2454,6 +2475,7 @@
                 action: 'submit',
                 participantName: participantName,
                 deploymentId: deploymentId,
+                ...(activePreset.studyTag ? { studyTag: activePreset.studyTag } : {}),
                 sessionId: sessionId,
                 consent: consent || 'yes',
                 age: ageToSubmit,
@@ -2496,10 +2518,12 @@
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 45000); // 45s hard timeout
-                const res = await fetch(SCRIPT_URL, {
+                const res = await fetch(SUPABASE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    redirect: 'follow',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    },
                     body: JSON.stringify(payload),
                     signal: controller.signal
                 });
@@ -2568,35 +2592,124 @@
             }
         }
         
-        // ========== ADDON REGISTRY ==========
+        // ========== ADDON RENDERER ==========
+        // Renders question definitions to HTML. Addon entries use either legacy `html`
+        // (string, passes through unchanged) or new `questions` (array, rendered here).
+        // Supported types: sectionHeader, sectionDescription, vas, singleSelect,
+        //                  multiSelect, likert5, nps, conditional
+
+        function renderQuestion(q) {
+            switch (q.type) {
+                case 'sectionHeader':
+                    return '<div class="section-title"' + (q.style ? ' style="' + q.style + '"' : '') + '>' + q.label + '</div>';
+
+                case 'sectionDescription':
+                    return '<div class="addon-section-description">' + q.html + '</div>';
+
+                case 'vas':
+                    return '\n                <div class="vas-item addon-item" id="addonItem_' + q.field + '">'
+                         + '\n                    <div class="vas-question">' + q.question + '</div>'
+                         + '\n                    <div class="vas-slider-container">'
+                         + '\n                        <div class="vas-labels"><span>' + q.labelLow + '</span><span>' + q.labelHigh + '</span></div>'
+                         + '\n                        <input type="range" class="vas-slider" id="addon_' + q.field + '" data-field="' + q.field + '" min="0" max="100" value="50">'
+                         + '\n                        <div class="vas-value"><span id="addon_' + q.field + 'Value">&mdash;</span></div>'
+                         + '\n                    </div>'
+                         + '\n                </div>';
+
+                case 'singleSelect':
+                    return '\n                <div class="addon-question-block"' + (q.id ? ' id="' + q.id + '"' : '') + '>'
+                         + '\n                    <div class="addon-question">' + q.question + '</div>'
+                         + '\n                    <div class="addon-ss-group" data-field="' + q.field + '"'
+                         + (q.conditionalTarget ? ' data-conditional-target="' + q.conditionalTarget + '"' : '')
+                         + '>\n                        '
+                         + q.options.map(function(o){ return '<button class="addon-ss-btn" data-value="' + o.value + '">' + o.label + '</button>'; }).join('\n                        ')
+                         + '\n                    </div>'
+                         + '\n                </div>';
+
+                case 'multiSelect':
+                    return '\n                <div class="addon-question-block">'
+                         + '\n                    <div class="addon-question">' + q.question
+                         + (q.hint ? ' <span style="font-size:0.75em;color:#888;font-weight:400;">' + q.hint + '</span>' : '')
+                         + '</div>'
+                         + '\n                    <div class="addon-ss-group" data-field="' + q.field + '" data-multiselect="true"'
+                         + (q.exclusiveValue ? ' data-exclusive="' + q.exclusiveValue + '"' : '')
+                         + '>\n                        '
+                         + q.options.map(function(o){ return '<button class="addon-ss-btn" data-value="' + o.value + '">' + o.label + '</button>'; }).join('\n                        ')
+                         + '\n                    </div>'
+                         + '\n                </div>';
+
+                case 'likert5':
+                    return '\n                <div class="addon-l5-item" data-field="' + q.field + '">'
+                         + '\n                    <div class="addon-l5-question">' + q.question + '</div>'
+                         + '\n                    <div class="addon-l5-options">\n                        '
+                         + [1,2,3,4,5].map(function(n){ return '<button class="addon-l5-btn" data-value="' + n + '">' + n + '</button>'; }).join('\n                        ')
+                         + '\n                    </div>'
+                         + '\n                    <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>'
+                         + '\n                </div>';
+
+                case 'nps':
+                    var btns = [];
+                    for (var i = 0; i <= 10; i++) btns.push('<button class="addon-nps-btn" data-value="' + i + '">' + i + '</button>');
+                    return '\n                <div class="addon-question-block">'
+                         + '\n                    <div class="addon-question">' + q.question + '</div>'
+                         + '\n                    <div class="addon-nps-group" data-field="' + q.field + '">\n                        '
+                         + btns.join('\n                        ')
+                         + '\n                    </div>'
+                         + '\n                    <div class="addon-nps-labels"><span>' + q.labelLow + '</span><span>' + q.labelHigh + '</span></div>'
+                         + '\n                </div>';
+
+                case 'conditional':
+                    return '\n                <div class="addon-conditional hidden" id="' + q.id + '">'
+                         + '\n                    ' + q.questions.map(renderQuestion).join('\n                    ')
+                         + '\n                </div>';
+
+                default:
+                    return '';
+            }
+        }
+
+        function renderAddonHTML(addonKey, addon) {
+            if (addon.html) return addon.html; // backward-compat: legacy string entries pass through unchanged
+            // timing:'both' addons (e.g. atomic VAS sliders) render without a wrapper —
+            // they sit inline with the SSS VAS items and are always visible.
+            if (addon.timing === 'both') {
+                return addon.questions.map(renderQuestion).join('\n');
+            }
+            // timing:'pre' and 'post' addons get a section wrapper, hidden by default,
+            // shown/hidden by updateAddonVisibility() when timing is toggled.
+            var timingClass = addon.timing === 'pre' ? ' addon-pre-only' : ' addon-post-only';
+            var inner = addon.questions.map(renderQuestion).join('\n');
+            return '<div class="section' + timingClass + ' hidden" id="addonItem_' + addonKey + '">\n' + inner + '\n                </div>';
+        }
+
+        // Auto-derive required fields from a questions array.
+        // Fields inside 'conditional' blocks are intentionally excluded.
+        function collectRequiredFields(questions) {
+            var fields = [];
+            for (var i = 0; i < questions.length; i++) {
+                var q = questions[i];
+                if (q.field && q.type !== 'conditional') fields.push(q.field);
+            }
+            return fields;
+        }
+
+                // ========== ADDON REGISTRY ==========
         const ADDON_REGISTRY = {
             // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Individual addons (Spirit / general) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
             mentalReadiness: {
-                insertAfter: 'vasItem_mentalQuiet', timing: 'both', fieldName: 'addonMentalReadiness',
-                html: `
-                <div class="vas-item addon-item" id="addonItem_mentalReadiness">
-                    <div class="vas-question">How mentally ready do you feel right now?</div>
-                    <div class="vas-slider-container">
-                        <div class="vas-labels"><span>Not Ready</span><span>Fully Ready</span></div>
-                        <input type="range" class="vas-slider" id="addonMentalReadiness" min="0" max="100" value="50">
-                        <div class="vas-value"><span id="addonMentalReadinessValue">&mdash;</span></div>
-                    </div>
-                </div>`
+                insertAfter: 'vasItem_mentalQuiet', timing: 'both',
+                questions: [
+                    { type: 'vas', field: 'addonMentalReadiness', question: 'How mentally ready do you feel right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
+                ],
             },
             soreness: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both', fieldName: 'addonSoreness',
-                html: `
-                <div class="vas-item addon-item" id="addonItem_soreness">
-                    <div class="vas-question">Rate your current muscle soreness.</div>
-                    <div class="vas-slider-container">
-                        <div class="vas-labels"><span>None</span><span>Severe</span></div>
-                        <input type="range" class="vas-slider" id="addonSoreness" min="0" max="100" value="50">
-                        <div class="vas-value"><span id="addonSorenessValue">&mdash;</span></div>
-                    </div>
-                </div>`
+                insertAfter: 'vasItem_bodyConnection', timing: 'both',
+                questions: [
+                    { type: 'vas', field: 'addonSoreness', question: 'Rate your current muscle soreness.', labelLow: 'None', labelHigh: 'Severe' },
+                ],
             },
             menstrual: {
-                insertAfter: 'addonItem_soreness', timing: 'both',
+                insertAfter: 'vasItem_bodyConnection', timing: 'both',
                 html: `
                 <div class="addon-question-block addon-item" id="addonItem_menstrual">
                     <div class="likert-question">Rate your current menstrual symptom severity</div>
@@ -2614,510 +2727,281 @@
                 insertAfter: 'surveyBodyStart',
                 timing: 'pre',
                 required: { pre: ['caaUsageCount', 'caaPromptedBy'] },
-                html: `
-                <div class="section addon-pre-only hidden" id="addonItem_caaPreUsage">
-                    <div class="section-title">Usage &amp; Motivation</div>
-
-                    <div class="addon-question-block" id="caaUsageCountBlock">
-                        <div class="addon-question">How many times have you used the Shiftwave chair before today?</div>
-                        <div class="addon-ss-group" data-field="caaUsageCount" data-conditional-target="caaConditional">
-                            <button class="addon-ss-btn" data-value="first_time">This is my first time</button>
-                            <button class="addon-ss-btn" data-value="1_2">1&ndash;2 times</button>
-                            <button class="addon-ss-btn" data-value="3_5">3&ndash;5 times</button>
-                            <button class="addon-ss-btn" data-value="6_10">6&ndash;10 times</button>
-                            <button class="addon-ss-btn" data-value="10plus">More than 10 times</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">What brought you to Shiftwave today?</div>
-                        <div class="addon-ss-group" data-field="caaPromptedBy">
-                            <button class="addon-ss-btn" data-value="stress_anxiety">Stress or anxiety</button>
-                            <button class="addon-ss-btn" data-value="relax">To relax / unwind</button>
-                            <button class="addon-ss-btn" data-value="focus">To improve focus or mental clarity</button>
-                            <button class="addon-ss-btn" data-value="physical">Physical tension or discomfort</button>
-                            <button class="addon-ss-btn" data-value="break">Wellness or scheduled break</button>
-                            <button class="addon-ss-btn" data-value="preventative">Preventative / regular routine</button>
-                            <button class="addon-ss-btn" data-value="available">Saw the chair was available</button>
-                            <button class="addon-ss-btn" data-value="recommended">Recommended by someone</button>
-                            <button class="addon-ss-btn" data-value="curiosity">Curiosity / trying it out</button>
-                            <button class="addon-ss-btn" data-value="other">Other</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-conditional hidden" id="caaConditional">
-                        <div class="addon-question-block">
-                            <div class="addon-question">When do you typically use Shiftwave? <span style="font-size:0.75em;color:#888;font-weight:400;">Select all that apply</span></div>
-                            <div class="addon-ss-group" data-field="caaTiming" data-multiselect="true" data-exclusive="no_pattern">
-                                <button class="addon-ss-btn" data-value="morning">Morning (to start the day)</button>
-                                <button class="addon-ss-btn" data-value="mid_morning">Mid-morning (work break)</button>
-                                <button class="addon-ss-btn" data-value="lunch">Lunch break</button>
-                                <button class="addon-ss-btn" data-value="afternoon">Afternoon (mid-day slump)</button>
-                                <button class="addon-ss-btn" data-value="after_work">After work (transition home)</button>
-                                <button class="addon-ss-btn" data-value="no_pattern">No regular pattern</button>
-                                <button class="addon-ss-btn" data-value="other">Other</button>
-                            </div>
-                        </div>
-                        <div class="addon-question-block">
-                            <div class="addon-question">What keeps you coming back to Shiftwave? <span style="font-size:0.75em;color:#888;font-weight:400;">Select all that apply</span></div>
-                            <div class="addon-ss-group" data-field="caaKeepsComing" data-multiselect="true">
-                                <button class="addon-ss-btn" data-value="effective">It&apos;s effective at reducing my stress / anxiety</button>
-                                <button class="addon-ss-btn" data-value="convenient">It&apos;s quick and convenient</button>
-                                <button class="addon-ss-btn" data-value="fits_routine">It fits into my work routine easily</button>
-                                <button class="addon-ss-btn" data-value="physical">I enjoy the physical sensation</button>
-                                <button class="addon-ss-btn" data-value="refocus">It helps me refocus</button>
-                                <button class="addon-ss-btn" data-value="better">It&apos;s better than alternatives I&apos;ve tried</button>
-                                <button class="addon-ss-btn" data-value="routine">It&apos;s become part of my wellness routine</button>
-                                <button class="addon-ss-btn" data-value="other">Other</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`
+                questions: [
+                    { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
+                    { type: 'singleSelect', field: 'caaUsageCount', id: 'caaUsageCountBlock',
+                      question: 'How many times have you used the Shiftwave chair before today?',
+                      conditionalTarget: 'caaConditional',
+                      options: [
+                        { value: 'first_time', label: 'This is my first time' },
+                        { value: '1_2',        label: '1–2 times' },
+                        { value: '3_5',        label: '3–5 times' },
+                        { value: '6_10',       label: '6–10 times' },
+                        { value: '10plus',     label: 'More than 10 times' },
+                    ]},
+                    { type: 'singleSelect', field: 'caaPromptedBy',
+                      question: 'What brought you to Shiftwave today?',
+                      options: [
+                        { value: 'stress_anxiety', label: 'Stress or anxiety' },
+                        { value: 'relax',          label: 'To relax / unwind' },
+                        { value: 'focus',          label: 'To improve focus or mental clarity' },
+                        { value: 'physical',       label: 'Physical tension or discomfort' },
+                        { value: 'break',          label: 'Wellness or scheduled break' },
+                        { value: 'preventative',   label: 'Preventative / regular routine' },
+                        { value: 'available',      label: 'Saw the chair was available' },
+                        { value: 'recommended',    label: 'Recommended by someone' },
+                        { value: 'curiosity',      label: 'Curiosity / trying it out' },
+                        { value: 'other',          label: 'Other' },
+                    ]},
+                    { type: 'conditional', id: 'caaConditional', questions: [
+                        { type: 'multiSelect', field: 'caaTiming',
+                          question: 'When do you typically use Shiftwave?',
+                          hint: 'Select all that apply',
+                          exclusiveValue: 'no_pattern',
+                          options: [
+                            { value: 'morning',    label: 'Morning (to start the day)' },
+                            { value: 'mid_morning',label: 'Mid-morning (work break)' },
+                            { value: 'lunch',      label: 'Lunch break' },
+                            { value: 'afternoon',  label: 'Afternoon (mid-day slump)' },
+                            { value: 'after_work', label: 'After work (transition home)' },
+                            { value: 'no_pattern', label: 'No regular pattern' },
+                            { value: 'other',      label: 'Other' },
+                        ]},
+                        { type: 'multiSelect', field: 'caaKeepsComing',
+                          question: 'What keeps you coming back to Shiftwave?',
+                          hint: 'Select all that apply',
+                          options: [
+                            { value: 'effective',    label: "It's effective at reducing my stress / anxiety" },
+                            { value: 'convenient',   label: "It's quick and convenient" },
+                            { value: 'fits_routine', label: 'It fits into my work routine easily' },
+                            { value: 'physical',     label: 'I enjoy the physical sensation' },
+                            { value: 'refocus',      label: 'It helps me refocus' },
+                            { value: 'better',       label: "It's better than alternatives I've tried" },
+                            { value: 'routine',      label: "It's become part of my wellness routine" },
+                            { value: 'other',        label: 'Other' },
+                        ]},
+                    ]},
+                ],
             },
             caaPost: {
                 insertAfter: 'emojiGridSection',
                 timing: 'post',
+                // Explicit required preserves original behavior (caaReturnReady intentionally optional)
                 required: { post: ['caaAccept1','caaAccept2','caaAccept3','caaAccept4','caaAccept5','caaAccept6',
                                     'caaUseAgain','caaRecommend','caaFrequency'] },
-                html: `
-                <div class="section addon-post-only hidden" id="addonItem_caaPost">
-                    <div class="section-title">Your Experience</div>
-                    <div class="addon-section-description">Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span></div>
-            <div class="addon-l5-item" data-field="caaAccept1">
-                <div class="addon-l5-question">I enjoyed this session</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="caaAccept2">
-                <div class="addon-l5-question">The session fit conveniently into my day</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="caaAccept3">
-                <div class="addon-l5-question">I understand how Shiftwave is supposed to help</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="caaAccept4">
-                <div class="addon-l5-question">This session helped me feel calmer and more relaxed</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="caaAccept5">
-                <div class="addon-l5-question">The vibration sensation was comfortable</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="caaAccept6">
-                <div class="addon-l5-question">I would use Shiftwave as part of my stress management routine</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-
-                    <div class="section-title" style="margin-top:24px;">Workplace</div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">How ready do you feel to return to your work tasks right now?</div>
-                        <div class="addon-nps-group" data-field="caaReturnReady">
-                            <button class="addon-nps-btn" data-value="0">0</button>
-                            <button class="addon-nps-btn" data-value="1">1</button>
-                            <button class="addon-nps-btn" data-value="2">2</button>
-                            <button class="addon-nps-btn" data-value="3">3</button>
-                            <button class="addon-nps-btn" data-value="4">4</button>
-                            <button class="addon-nps-btn" data-value="5">5</button>
-                            <button class="addon-nps-btn" data-value="6">6</button>
-                            <button class="addon-nps-btn" data-value="7">7</button>
-                            <button class="addon-nps-btn" data-value="8">8</button>
-                            <button class="addon-nps-btn" data-value="9">9</button>
-                            <button class="addon-nps-btn" data-value="10">10</button>
-                        </div>
-                        <div class="addon-nps-labels"><span>Not Ready</span><span>Fully Ready</span></div>
-                    </div>
-
-            <div class="addon-question-block">
-                <div class="addon-question">How likely are you to use Shiftwave again?</div>
-                <div class="addon-nps-group" data-field="caaUseAgain">
-                <button class="addon-nps-btn" data-value="0">0</button>
-                <button class="addon-nps-btn" data-value="1">1</button>
-                <button class="addon-nps-btn" data-value="2">2</button>
-                <button class="addon-nps-btn" data-value="3">3</button>
-                <button class="addon-nps-btn" data-value="4">4</button>
-                <button class="addon-nps-btn" data-value="5">5</button>
-                <button class="addon-nps-btn" data-value="6">6</button>
-                <button class="addon-nps-btn" data-value="7">7</button>
-                <button class="addon-nps-btn" data-value="8">8</button>
-                <button class="addon-nps-btn" data-value="9">9</button>
-                <button class="addon-nps-btn" data-value="10">10</button>
-                </div>
-                <div class="addon-nps-labels"><span>Not at all likely</span><span>Extremely likely</span></div>
-            </div>
-
-            <div class="addon-question-block">
-                <div class="addon-question">How likely are you to recommend Shiftwave to colleagues?</div>
-                <div class="addon-nps-group" data-field="caaRecommend">
-                <button class="addon-nps-btn" data-value="0">0</button>
-                <button class="addon-nps-btn" data-value="1">1</button>
-                <button class="addon-nps-btn" data-value="2">2</button>
-                <button class="addon-nps-btn" data-value="3">3</button>
-                <button class="addon-nps-btn" data-value="4">4</button>
-                <button class="addon-nps-btn" data-value="5">5</button>
-                <button class="addon-nps-btn" data-value="6">6</button>
-                <button class="addon-nps-btn" data-value="7">7</button>
-                <button class="addon-nps-btn" data-value="8">8</button>
-                <button class="addon-nps-btn" data-value="9">9</button>
-                <button class="addon-nps-btn" data-value="10">10</button>
-                </div>
-                <div class="addon-nps-labels"><span>Not at all likely</span><span>Extremely likely</span></div>
-            </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">How often do you see yourself using Shiftwave at the office?</div>
-                        <div class="addon-ss-group" data-field="caaFrequency">
-                            <button class="addon-ss-btn" data-value="daily">Daily</button>
-                            <button class="addon-ss-btn" data-value="few_week">A few times a week</button>
-                            <button class="addon-ss-btn" data-value="weekly">Weekly</button>
-                            <button class="addon-ss-btn" data-value="few_month">A few times a month</button>
-                            <button class="addon-ss-btn" data-value="rarely">Rarely</button>
-                        </div>
-                    </div>
-                </div>`
+                questions: [
+                    { type: 'sectionHeader', label: 'Your Experience' },
+                    { type: 'sectionDescription', html: 'Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span>' },
+                    { type: 'likert5', field: 'caaAccept1', question: 'I enjoyed this session' },
+                    { type: 'likert5', field: 'caaAccept2', question: 'The session fit conveniently into my day' },
+                    { type: 'likert5', field: 'caaAccept3', question: 'I understand how Shiftwave is supposed to help' },
+                    { type: 'likert5', field: 'caaAccept4', question: 'This session helped me feel calmer and more relaxed' },
+                    { type: 'likert5', field: 'caaAccept5', question: 'The vibration sensation was comfortable' },
+                    { type: 'likert5', field: 'caaAccept6', question: 'I would use Shiftwave as part of my stress management routine' },
+                    { type: 'sectionHeader', label: 'Workplace', style: 'margin-top:24px;' },
+                    { type: 'nps', field: 'caaReturnReady', question: 'How ready do you feel to return to your work tasks right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
+                    { type: 'nps', field: 'caaUseAgain',    question: 'How likely are you to use Shiftwave again?',                   labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
+                    { type: 'nps', field: 'caaRecommend',   question: 'How likely are you to recommend Shiftwave to a colleague?',    labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
+                    { type: 'singleSelect', field: 'caaFrequency', question: 'How often do you see yourself using Shiftwave at the office?', options: [
+                        { value: 'daily',     label: 'Daily' },
+                        { value: 'few_week',  label: 'A few times a week' },
+                        { value: 'weekly',    label: 'Weekly' },
+                        { value: 'few_month', label: 'A few times a month' },
+                        { value: 'rarely',    label: 'Rarely' },
+                    ]},
+                ],
             },
-
             // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ McLaren addons ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
             mclarenPreSection: {
                 insertAfter: 'surveyBodyStart',
                 timing: 'pre',
-                required: { pre: ['mclRole', 'mclUsageCount', 'mclPrimaryReason', 'mclPromptedBy'] },
-                html: `
-                <div class="section addon-pre-only hidden" id="addonItem_mclarenPreSection">
-                    <div class="section-title">Role &amp; Usage</div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">What is your role?</div>
-                        <div class="addon-ss-group" data-field="mclRole">
-                            <button class="addon-ss-btn" data-value="driver">Driver</button>
-                            <button class="addon-ss-btn" data-value="engineer">Engineer</button>
-                            <button class="addon-ss-btn" data-value="mechanic">Mechanic</button>
-                            <button class="addon-ss-btn" data-value="strategist">Strategist</button>
-                            <button class="addon-ss-btn" data-value="management">Team Management</button>
-                            <button class="addon-ss-btn" data-value="physio">Physiotherapist / Trainer</button>
-                            <button class="addon-ss-btn" data-value="other">Other</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">How many times have you used the Shiftwave chair before today?</div>
-                        <div class="addon-ss-group" data-field="mclUsageCount" data-conditional-target="mclConditional">
-                            <button class="addon-ss-btn" data-value="first_time">This is my first time</button>
-                            <button class="addon-ss-btn" data-value="1_2">1&ndash;2 times</button>
-                            <button class="addon-ss-btn" data-value="3_5">3&ndash;5 times</button>
-                            <button class="addon-ss-btn" data-value="6_10">6&ndash;10 times</button>
-                            <button class="addon-ss-btn" data-value="10plus">More than 10 times</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">What is your PRIMARY reason for using Shiftwave today?</div>
-                        <div class="addon-ss-group" data-field="mclPrimaryReason">
-                            <button class="addon-ss-btn" data-value="recovery">Recovery after physical work or exertion</button>
-                            <button class="addon-ss-btn" data-value="mental_reset">Mental reset and focus</button>
-                            <button class="addon-ss-btn" data-value="pre_perf">Pre-performance preparation</button>
-                            <button class="addon-ss-btn" data-value="stress">To manage stress or tension</button>
-                            <button class="addon-ss-btn" data-value="relax">To relax / unwind after a long day</button>
-                            <button class="addon-ss-btn" data-value="physical">To relieve physical tension or soreness</button>
-                            <button class="addon-ss-btn" data-value="curiosity">Curiosity / trying it out</button>
-                            <button class="addon-ss-btn" data-value="other">Other</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">What prompted you to use Shiftwave TODAY?</div>
-                        <div class="addon-ss-group" data-field="mclPromptedBy">
-                            <button class="addon-ss-btn" data-value="stressed">Feeling stressed or fatigued</button>
-                            <button class="addon-ss-btn" data-value="preventative">Preventative / regular recovery routine</button>
-                            <button class="addon-ss-btn" data-value="physical">Physical soreness or discomfort</button>
-                            <button class="addon-ss-btn" data-value="focus">Trouble focusing or mentally preparing</button>
-                            <button class="addon-ss-btn" data-value="downtime">Scheduled downtime</button>
-                            <button class="addon-ss-btn" data-value="available">Saw the chair was available</button>
-                            <button class="addon-ss-btn" data-value="recommended">Recommended by someone</button>
-                            <button class="addon-ss-btn" data-value="other">Other</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-conditional hidden" id="mclConditional">
-                        <div class="addon-question-block">
-                            <div class="addon-question">When do you typically use Shiftwave?</div>
-                            <div class="addon-ss-group" data-field="mclTiming">
-                                <button class="addon-ss-btn" data-value="before">Before work / sessions begin</button>
-                                <button class="addon-ss-btn" data-value="during">During breaks between tasks</button>
-                                <button class="addon-ss-btn" data-value="after">After work / sessions (wind down)</button>
-                                <button class="addon-ss-btn" data-value="when_stressed">When I&apos;m feeling stressed or fatigued</button>
-                                <button class="addon-ss-btn" data-value="routine">As part of a regular routine</button>
-                                <button class="addon-ss-btn" data-value="no_pattern">No regular pattern</button>
-                                <button class="addon-ss-btn" data-value="other">Other</button>
-                            </div>
-                        </div>
-                        <div class="addon-question-block">
-                            <div class="addon-question">What keeps you coming back to Shiftwave?</div>
-                            <div class="addon-ss-group" data-field="mclKeepsComing">
-                                <button class="addon-ss-btn" data-value="effective">It&apos;s effective at reducing my stress / tension</button>
-                                <button class="addon-ss-btn" data-value="convenient">It&apos;s quick and convenient</button>
-                                <button class="addon-ss-btn" data-value="fits">It fits into my routine easily</button>
-                                <button class="addon-ss-btn" data-value="physical">I enjoy the physical sensation</button>
-                                <button class="addon-ss-btn" data-value="refocus">It helps me refocus and mentally reset</button>
-                                <button class="addon-ss-btn" data-value="better">It&apos;s better than other recovery tools I&apos;ve tried</button>
-                                <button class="addon-ss-btn" data-value="routine">It&apos;s become part of my performance / recovery routine</button>
-                                <button class="addon-ss-btn" data-value="other">Other</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`
+                required: { pre: ['mclRole', 'mclUsageCount', 'mclPromptedBy'] },
+                questions: [
+                    { type: 'sectionHeader', label: 'Role &amp; Usage' },
+                    { type: 'singleSelect', field: 'mclRole', id: 'mclRoleBlock',
+                      question: 'What is your role?',
+                      options: [
+                        { value: 'driver',     label: 'Driver' },
+                        { value: 'engineer',   label: 'Engineer' },
+                        { value: 'mechanic',   label: 'Mechanic' },
+                        { value: 'strategist', label: 'Strategist' },
+                        { value: 'management', label: 'Team Management' },
+                        { value: 'physio',     label: 'Physiotherapist / Trainer' },
+                        { value: 'other',      label: 'Other' },
+                    ]},
+                    { type: 'singleSelect', field: 'mclUsageCount', id: 'mclUsageCountBlock',
+                      question: 'How many times have you used the Shiftwave chair before today?',
+                      conditionalTarget: 'mclConditional',
+                      options: [
+                        { value: 'first_time', label: 'This is my first time' },
+                        { value: '1_2',        label: '1–2 times' },
+                        { value: '3_5',        label: '3–5 times' },
+                        { value: '6_10',       label: '6–10 times' },
+                        { value: '10plus',     label: 'More than 10 times' },
+                    ]},
+                    { type: 'singleSelect', field: 'mclPromptedBy',
+                      question: 'What brought you to Shiftwave today?',
+                      options: [
+                        { value: 'recovery',     label: 'Recovery after physical work or exertion' },
+                        { value: 'mental_reset', label: 'Mental reset or focus' },
+                        { value: 'pre_perf',     label: 'Pre-performance preparation' },
+                        { value: 'stress',       label: 'Feeling stressed or fatigued' },
+                        { value: 'relax',        label: 'To relax / unwind' },
+                        { value: 'physical',     label: 'Physical tension or soreness' },
+                        { value: 'preventative', label: 'Preventative / regular routine' },
+                        { value: 'downtime',     label: 'Scheduled downtime' },
+                        { value: 'available',    label: 'Saw the chair was available' },
+                        { value: 'recommended',  label: 'Recommended by someone' },
+                        { value: 'curiosity',    label: 'Curiosity / trying it out' },
+                        { value: 'other',        label: 'Other' },
+                    ]},
+                    { type: 'conditional', id: 'mclConditional', questions: [
+                        { type: 'multiSelect', field: 'mclTiming',
+                          question: 'When do you typically use Shiftwave?',
+                          hint: 'Select all that apply',
+                          exclusiveValue: 'no_pattern',
+                          options: [
+                            { value: 'before',      label: 'Before work / sessions begin' },
+                            { value: 'during',      label: 'During breaks between tasks' },
+                            { value: 'after',       label: 'After work / sessions (wind down)' },
+                            { value: 'when_stressed',label: "When I'm feeling stressed or fatigued" },
+                            { value: 'routine',     label: 'As part of a regular routine' },
+                            { value: 'no_pattern',  label: 'No regular pattern' },
+                            { value: 'other',       label: 'Other' },
+                        ]},
+                        { type: 'multiSelect', field: 'mclKeepsComing',
+                          question: 'What keeps you coming back to Shiftwave?',
+                          options: [
+                            { value: 'effective',  label: "It's effective at reducing my stress / tension" },
+                            { value: 'convenient', label: "It's quick and convenient" },
+                            { value: 'fits',       label: 'It fits into my routine easily' },
+                            { value: 'physical',   label: 'I enjoy the physical sensation' },
+                            { value: 'refocus',    label: 'It helps me refocus and mentally reset' },
+                            { value: 'better',     label: "It's better than other recovery tools I've tried" },
+                            { value: 'routine',    label: "It's become part of my performance / recovery routine" },
+                            { value: 'other',      label: 'Other' },
+                        ]},
+                    ]},
+                ],
             },
             mclarenSoreness: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both', fieldName: 'addonMclSoreness',
-                html: `
-                <div class="vas-item addon-item" id="addonItem_mclarenSoreness">
-                    <div class="vas-question">How sore does your body feel right now?</div>
-                    <div class="vas-slider-container">
-                        <div class="vas-labels"><span>Not Sore</span><span>Extremely Sore</span></div>
-                        <input type="range" class="vas-slider" id="addonMclSoreness" min="0" max="100" value="50">
-                        <div class="vas-value"><span id="addonMclSorenessValue">&mdash;</span></div>
-                    </div>
-                </div>`
+                insertAfter: 'vasItem_bodyConnection', timing: 'both',
+                questions: [
+                    { type: 'vas', field: 'addonMclSoreness', question: 'How sore does your body feel right now?', labelLow: 'Not Sore', labelHigh: 'Extremely Sore' },
+                ],
             },
             mclarenPerfReadiness: {
-                insertAfter: 'vasItem_alertness', timing: 'both', fieldName: 'addonMclPerfReadiness',
-                html: `
-                <div class="vas-item addon-item" id="addonItem_mclarenPerfReadiness">
-                    <div class="vas-question">How ready do you feel to perform your job right now?</div>
-                    <div class="vas-slider-container">
-                        <div class="vas-labels"><span>Not Ready</span><span>Fully Ready</span></div>
-                        <input type="range" class="vas-slider" id="addonMclPerfReadiness" min="0" max="100" value="50">
-                        <div class="vas-value"><span id="addonMclPerfReadinessValue">&mdash;</span></div>
-                    </div>
-                </div>`
+                insertAfter: 'vasItem_alertness', timing: 'both',
+                questions: [
+                    { type: 'vas', field: 'addonMclPerfReadiness', question: 'How ready do you feel to perform your job right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
+                ],
             },
             mclarenPost: {
                 insertAfter: 'emojiGridSection',
                 timing: 'post',
+                // Explicit required preserves original behavior
                 required: { post: ['mclAccept1','mclAccept2','mclAccept3','mclAccept4','mclAccept5','mclAccept6',
                                     'mclUseAgain','mclRecommend','mclFrequency','mclWouldHelp','mclComparison'] },
-                html: `
-                <div class="section addon-post-only hidden" id="addonItem_mclarenPost">
-                    <div class="section-title">Your Experience</div>
-                    <div class="addon-section-description">Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span></div>
-            <div class="addon-l5-item" data-field="mclAccept1">
-                <div class="addon-l5-question">I enjoyed this session</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="mclAccept2">
-                <div class="addon-l5-question">The session fit conveniently into my schedule</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="mclAccept3">
-                <div class="addon-l5-question">I understand how Shiftwave is supposed to help</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="mclAccept4">
-                <div class="addon-l5-question">This session helped me feel calmer and more relaxed</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="mclAccept5">
-                <div class="addon-l5-question">The vibration sensation was comfortable</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-            <div class="addon-l5-item" data-field="mclAccept6">
-                <div class="addon-l5-question">I would use Shiftwave as part of my recovery and performance routine</div>
-                <div class="addon-l5-options">
-                    <button class="addon-l5-btn" data-value="1">1</button>
-                    <button class="addon-l5-btn" data-value="2">2</button>
-                    <button class="addon-l5-btn" data-value="3">3</button>
-                    <button class="addon-l5-btn" data-value="4">4</button>
-                    <button class="addon-l5-btn" data-value="5">5</button>
-                </div>
-                <div class="addon-l5-scale-labels"><span>Strongly disagree</span><span>Strongly agree</span></div>
-            </div>
-
-                    <div class="section-title" style="margin-top:24px;">Performance &amp; Recovery</div>
-
-            <div class="addon-question-block">
-                <div class="addon-question">How likely are you to use Shiftwave again?</div>
-                <div class="addon-nps-group" data-field="mclUseAgain">
-                <button class="addon-nps-btn" data-value="0">0</button>
-                <button class="addon-nps-btn" data-value="1">1</button>
-                <button class="addon-nps-btn" data-value="2">2</button>
-                <button class="addon-nps-btn" data-value="3">3</button>
-                <button class="addon-nps-btn" data-value="4">4</button>
-                <button class="addon-nps-btn" data-value="5">5</button>
-                <button class="addon-nps-btn" data-value="6">6</button>
-                <button class="addon-nps-btn" data-value="7">7</button>
-                <button class="addon-nps-btn" data-value="8">8</button>
-                <button class="addon-nps-btn" data-value="9">9</button>
-                <button class="addon-nps-btn" data-value="10">10</button>
-                </div>
-                <div class="addon-nps-labels"><span>Not at all likely</span><span>Extremely likely</span></div>
-            </div>
-
-            <div class="addon-question-block">
-                <div class="addon-question">How likely are you to recommend Shiftwave to teammates or colleagues?</div>
-                <div class="addon-nps-group" data-field="mclRecommend">
-                <button class="addon-nps-btn" data-value="0">0</button>
-                <button class="addon-nps-btn" data-value="1">1</button>
-                <button class="addon-nps-btn" data-value="2">2</button>
-                <button class="addon-nps-btn" data-value="3">3</button>
-                <button class="addon-nps-btn" data-value="4">4</button>
-                <button class="addon-nps-btn" data-value="5">5</button>
-                <button class="addon-nps-btn" data-value="6">6</button>
-                <button class="addon-nps-btn" data-value="7">7</button>
-                <button class="addon-nps-btn" data-value="8">8</button>
-                <button class="addon-nps-btn" data-value="9">9</button>
-                <button class="addon-nps-btn" data-value="10">10</button>
-                </div>
-                <div class="addon-nps-labels"><span>Not at all likely</span><span>Extremely likely</span></div>
-            </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">How often do you see yourself using Shiftwave?</div>
-                        <div class="addon-ss-group" data-field="mclFrequency">
-                            <button class="addon-ss-btn" data-value="daily">Daily</button>
-                            <button class="addon-ss-btn" data-value="few_week">A few times a week</button>
-                            <button class="addon-ss-btn" data-value="weekly">Weekly</button>
-                            <button class="addon-ss-btn" data-value="race_weekends">Race weekends only</button>
-                            <button class="addon-ss-btn" data-value="few_month">A few times a month</button>
-                            <button class="addon-ss-btn" data-value="rarely">Rarely</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">Would having Shiftwave available help improve your work or performance?</div>
-                        <div class="addon-ss-group" data-field="mclWouldHelp">
-                            <button class="addon-ss-btn" data-value="def_not">Definitely not</button>
-                            <button class="addon-ss-btn" data-value="prob_not">Probably not</button>
-                            <button class="addon-ss-btn" data-value="not_sure">Not sure</button>
-                            <button class="addon-ss-btn" data-value="prob_yes">Probably yes</button>
-                            <button class="addon-ss-btn" data-value="def_yes">Definitely yes</button>
-                        </div>
-                    </div>
-
-                    <div class="addon-question-block">
-                        <div class="addon-question">How does Shiftwave compare to other recovery or mental preparation tools you use?</div>
-                        <div class="addon-ss-group" data-field="mclComparison">
-                            <button class="addon-ss-btn" data-value="much_better">Much better</button>
-                            <button class="addon-ss-btn" data-value="somewhat_better">Somewhat better</button>
-                            <button class="addon-ss-btn" data-value="same">About the same</button>
-                            <button class="addon-ss-btn" data-value="somewhat_worse">Somewhat worse</button>
-                            <button class="addon-ss-btn" data-value="much_worse">Much worse</button>
-                            <button class="addon-ss-btn" data-value="no_other_tools">I don&apos;t use other tools</button>
-                        </div>
-                    </div>
-                </div>`
+                questions: [
+                    { type: 'sectionHeader', label: 'Your Experience' },
+                    { type: 'sectionDescription', html: 'Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span>' },
+                    { type: 'likert5', field: 'mclAccept1', question: 'I enjoyed this session' },
+                    { type: 'likert5', field: 'mclAccept2', question: 'The session fit conveniently into my schedule' },
+                    { type: 'likert5', field: 'mclAccept3', question: 'I understand how Shiftwave is supposed to help' },
+                    { type: 'likert5', field: 'mclAccept4', question: 'This session helped me feel calmer and more relaxed' },
+                    { type: 'likert5', field: 'mclAccept5', question: 'The vibration sensation was comfortable' },
+                    { type: 'likert5', field: 'mclAccept6', question: 'I would use Shiftwave as part of my recovery and performance routine' },
+                    { type: 'sectionHeader', label: 'Performance &amp; Recovery', style: 'margin-top:24px;' },
+                    { type: 'nps', field: 'mclUseAgain',  question: 'How likely are you to use Shiftwave again?',                           labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
+                    { type: 'nps', field: 'mclRecommend', question: 'How likely are you to recommend Shiftwave to teammates or colleagues?', labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
+                    { type: 'singleSelect', field: 'mclFrequency', question: 'How often do you see yourself using Shiftwave?', options: [
+                        { value: 'daily',        label: 'Daily' },
+                        { value: 'few_week',     label: 'A few times a week' },
+                        { value: 'weekly',       label: 'Weekly' },
+                        { value: 'race_weekends',label: 'Race weekends only' },
+                        { value: 'few_month',    label: 'A few times a month' },
+                        { value: 'rarely',       label: 'Rarely' },
+                    ]},
+                    { type: 'singleSelect', field: 'mclWouldHelp', question: 'Would having Shiftwave available help improve your work or performance?', options: [
+                        { value: 'def_not',  label: 'Definitely not' },
+                        { value: 'prob_not', label: 'Probably not' },
+                        { value: 'not_sure', label: 'Not sure' },
+                        { value: 'prob_yes', label: 'Probably yes' },
+                        { value: 'def_yes',  label: 'Definitely yes' },
+                    ]},
+                    { type: 'singleSelect', field: 'mclComparison', question: 'How does Shiftwave compare to other recovery or mental preparation tools you use?', options: [
+                        { value: 'much_better',     label: 'Much better' },
+                        { value: 'somewhat_better', label: 'Somewhat better' },
+                        { value: 'same',            label: 'About the same' },
+                        { value: 'somewhat_worse',  label: 'Somewhat worse' },
+                        { value: 'much_worse',      label: 'Much worse' },
+                        { value: 'no_other_tools',  label: "I don't use other tools" },
+                    ]},
+                ],
             }
         };
 
         // REGISTRY END ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â injection below
 
         // ========== ADDON INJECTION ==========
+        function wireAddonElement(el) {
+            // Wire up VAS slider if present
+            const slider = el.querySelector('input[type="range"]');
+            const valueDisplay = el.querySelector('span[id$="Value"]');
+            if (slider && valueDisplay) {
+                const doEngage = () => {
+                    el.classList.add('engaged');
+                    // Write current value on first engage — registers the field even if
+                    // the slider isn't dragged from its default center position.
+                    if (slider.dataset.field && addonValues[slider.dataset.field] === undefined) {
+                        addonValues[slider.dataset.field] = parseInt(slider.value);
+                        updateProgress();
+                    }
+                };
+                el.addEventListener('pointerdown', doEngage);
+                el.addEventListener('touchstart', doEngage, { passive: true });
+                slider.addEventListener('input', () => {
+                    doEngage();
+                    valueDisplay.textContent = slider.value;
+                    if (slider.dataset.field) addonValues[slider.dataset.field] = parseInt(slider.value);
+                    updateProgress();
+                });
+            }
+            // Wire up select if present
+            const select = el.querySelector('select');
+            if (select) select.addEventListener('change', updateProgress);
+        }
+
         function injectAddons() {
+            // Group addons by their anchor element, preserving activeAddons order within each group.
+            // insertAfter should always reference an SSS element ID, never another addon's generated ID.
+            // Sequencing of multiple addons at the same anchor is determined solely by the order
+            // they appear in the deployment's addons array (activeAddons).
+            const groups = new Map(); // anchorId -> [addonKey, ...]
             activeAddons.forEach(addonKey => {
                 const addon = ADDON_REGISTRY[addonKey];
                 if (!addon) return;
-                const anchorEl = document.getElementById(addon.insertAfter);
-                if (!anchorEl) return;
-                const wrapper = document.createElement('div');
-                wrapper.innerHTML = addon.html.trim();
-                const el = wrapper.firstChild;
-                anchorEl.parentNode.insertBefore(el, anchorEl.nextSibling);
+                const anchor = addon.insertAfter;
+                if (!groups.has(anchor)) groups.set(anchor, []);
+                groups.get(anchor).push(addonKey);
+            });
 
-                // Wire up VAS slider if present
-                const slider = el.querySelector('input[type="range"]');
-                const valueDisplay = el.querySelector('span[id$="Value"]');
-                if (slider && valueDisplay) {
-                    // Engage on any pointer interaction with the container or slider
-                    const doEngage = () => el.classList.add('engaged');
-                    el.addEventListener('pointerdown', doEngage);
-                    el.addEventListener('touchstart', doEngage, { passive: true });
-                    slider.addEventListener('input', () => {
-                        doEngage();
-                        valueDisplay.textContent = slider.value;
-                        updateProgress();
-                    });
-                }
-                // Wire up select if present
-                const select = el.querySelector('select');
-                if (select) {
-                    select.addEventListener('change', updateProgress);
-                }
+            groups.forEach((keys, anchorId) => {
+                const anchorEl = document.getElementById(anchorId);
+                if (!anchorEl) return;
+                // Insert in order: each element goes after the previous insertion,
+                // so the first key ends up immediately after the anchor, the second
+                // immediately after the first, etc.
+                let insertAfterEl = anchorEl;
+                keys.forEach(addonKey => {
+                    const addon = ADDON_REGISTRY[addonKey];
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = renderAddonHTML(addonKey, addon).trim();
+                    const el = wrapper.firstChild;
+                    insertAfterEl.parentNode.insertBefore(el, insertAfterEl.nextSibling);
+                    wireAddonElement(el);
+                    insertAfterEl = el; // next addon slots in after this one
+                });
             });
         }
 
@@ -3166,15 +3050,23 @@
             const required = [];
             activeAddons.forEach(addonKey => {
                 const addon = ADDON_REGISTRY[addonKey];
-                if (!addon || !addon.required) return;
-                const fields = addon.required[timing] || [];
-                const both   = addon.required.both || [];
-                required.push(...fields, ...both);
+                if (!addon) return;
+                if (addon.required) {
+                    // Explicit required list (legacy or deliberate override)
+                    const fields = addon.required[timing] || [];
+                    const both   = addon.required.both || [];
+                    required.push(...fields, ...both);
+                } else if (addon.questions) {
+                    // Auto-derive from questions array (skips conditional sub-questions)
+                    required.push(...collectRequiredFields(addon.questions));
+                }
             });
-            // Returning participants skip the usage count question — not required for them
+            // Returning participants skip onboarding questions — not required for them
             if (participantStatus === 'returning') {
-                const idx = required.indexOf('caaUsageCount');
-                if (idx > -1) required.splice(idx, 1);
+                ['caaUsageCount', 'mclRole', 'mclUsageCount'].forEach(function(f) {
+                    const idx = required.indexOf(f);
+                    if (idx > -1) required.splice(idx, 1);
+                });
             }
             return required;
         }
@@ -3444,6 +3336,12 @@
             if (usageBlock) usageBlock.classList.remove('hidden');
             const caaCond = document.getElementById('caaConditional');
             if (caaCond) caaCond.classList.add('hidden');
+            const mclRoleBlock = document.getElementById('mclRoleBlock');
+            if (mclRoleBlock) mclRoleBlock.classList.remove('hidden');
+            const mclUsageBlock = document.getElementById('mclUsageCountBlock');
+            if (mclUsageBlock) mclUsageBlock.classList.remove('hidden');
+            const mclCond = document.getElementById('mclConditional');
+            if (mclCond) mclCond.classList.add('hidden');
         }
 
         function updateContinueBtn() {
