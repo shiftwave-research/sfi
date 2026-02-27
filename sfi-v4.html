@@ -2702,7 +2702,7 @@
                 ],
             },
             menstrual: {
-                insertAfter: 'addonItem_soreness', timing: 'both',
+                insertAfter: 'vasItem_bodyConnection', timing: 'both',
                 html: `
                 <div class="addon-question-block addon-item" id="addonItem_menstrual">
                     <div class="likert-question">Rate your current menstrual symptom severity</div>
@@ -2945,45 +2945,64 @@
         // REGISTRY END ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â injection below
 
         // ========== ADDON INJECTION ==========
+        function wireAddonElement(el) {
+            // Wire up VAS slider if present
+            const slider = el.querySelector('input[type="range"]');
+            const valueDisplay = el.querySelector('span[id$="Value"]');
+            if (slider && valueDisplay) {
+                const doEngage = () => {
+                    el.classList.add('engaged');
+                    // Write current value on first engage — registers the field even if
+                    // the slider isn't dragged from its default center position.
+                    if (slider.dataset.field && addonValues[slider.dataset.field] === undefined) {
+                        addonValues[slider.dataset.field] = parseInt(slider.value);
+                        updateProgress();
+                    }
+                };
+                el.addEventListener('pointerdown', doEngage);
+                el.addEventListener('touchstart', doEngage, { passive: true });
+                slider.addEventListener('input', () => {
+                    doEngage();
+                    valueDisplay.textContent = slider.value;
+                    if (slider.dataset.field) addonValues[slider.dataset.field] = parseInt(slider.value);
+                    updateProgress();
+                });
+            }
+            // Wire up select if present
+            const select = el.querySelector('select');
+            if (select) select.addEventListener('change', updateProgress);
+        }
+
         function injectAddons() {
+            // Group addons by their anchor element, preserving activeAddons order within each group.
+            // insertAfter should always reference an SSS element ID, never another addon's generated ID.
+            // Sequencing of multiple addons at the same anchor is determined solely by the order
+            // they appear in the deployment's addons array (activeAddons).
+            const groups = new Map(); // anchorId -> [addonKey, ...]
             activeAddons.forEach(addonKey => {
                 const addon = ADDON_REGISTRY[addonKey];
                 if (!addon) return;
-                const anchorEl = document.getElementById(addon.insertAfter);
-                if (!anchorEl) return;
-                const wrapper = document.createElement('div');
-                wrapper.innerHTML = renderAddonHTML(addonKey, addon).trim();
-                const el = wrapper.firstChild;
-                anchorEl.parentNode.insertBefore(el, anchorEl.nextSibling);
+                const anchor = addon.insertAfter;
+                if (!groups.has(anchor)) groups.set(anchor, []);
+                groups.get(anchor).push(addonKey);
+            });
 
-                // Wire up VAS slider if present
-                const slider = el.querySelector('input[type="range"]');
-                const valueDisplay = el.querySelector('span[id$="Value"]');
-                if (slider && valueDisplay) {
-                    // Engage on any pointer interaction with the container or slider
-                    const doEngage = () => {
-                        el.classList.add('engaged');
-                        // Write current value immediately on engage so the field
-                        // is registered even if the slider isn't dragged from center.
-                        if (slider.dataset.field && addonValues[slider.dataset.field] === undefined) {
-                            addonValues[slider.dataset.field] = parseInt(slider.value);
-                            updateProgress();
-                        }
-                    };
-                    el.addEventListener('pointerdown', doEngage);
-                    el.addEventListener('touchstart', doEngage, { passive: true });
-                    slider.addEventListener('input', () => {
-                        doEngage();
-                        valueDisplay.textContent = slider.value;
-                        if (slider.dataset.field) addonValues[slider.dataset.field] = parseInt(slider.value);
-                        updateProgress();
-                    });
-                }
-                // Wire up select if present
-                const select = el.querySelector('select');
-                if (select) {
-                    select.addEventListener('change', updateProgress);
-                }
+            groups.forEach((keys, anchorId) => {
+                const anchorEl = document.getElementById(anchorId);
+                if (!anchorEl) return;
+                // Insert in order: each element goes after the previous insertion,
+                // so the first key ends up immediately after the anchor, the second
+                // immediately after the first, etc.
+                let insertAfterEl = anchorEl;
+                keys.forEach(addonKey => {
+                    const addon = ADDON_REGISTRY[addonKey];
+                    const wrapper = document.createElement('div');
+                    wrapper.innerHTML = renderAddonHTML(addonKey, addon).trim();
+                    const el = wrapper.firstChild;
+                    insertAfterEl.parentNode.insertBefore(el, insertAfterEl.nextSibling);
+                    wireAddonElement(el);
+                    insertAfterEl = el; // next addon slots in after this one
+                });
             });
         }
 
