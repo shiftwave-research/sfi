@@ -2853,8 +2853,10 @@
                         { value: 'other',        label: 'Other' },
                     ]},
                     { type: 'conditional', id: 'mclConditional', questions: [
-                        { type: 'singleSelect', field: 'mclTiming',
+                        { type: 'multiSelect', field: 'mclTiming',
                           question: 'When do you typically use Shiftwave?',
+                          hint: 'Select all that apply',
+                          exclusiveValue: 'no_pattern',
                           options: [
                             { value: 'before',      label: 'Before work / sessions begin' },
                             { value: 'during',      label: 'During breaks between tasks' },
@@ -2955,7 +2957,15 @@
                 const valueDisplay = el.querySelector('span[id$="Value"]');
                 if (slider && valueDisplay) {
                     // Engage on any pointer interaction with the container or slider
-                    const doEngage = () => el.classList.add('engaged');
+                    const doEngage = () => {
+                        el.classList.add('engaged');
+                        // Write current value immediately on engage so the field
+                        // is registered even if the slider isn't dragged from center.
+                        if (slider.dataset.field && addonValues[slider.dataset.field] === undefined) {
+                            addonValues[slider.dataset.field] = parseInt(slider.value);
+                            updateProgress();
+                        }
+                    };
                     el.addEventListener('pointerdown', doEngage);
                     el.addEventListener('touchstart', doEngage, { passive: true });
                     slider.addEventListener('input', () => {
