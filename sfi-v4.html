@@ -1865,10 +1865,14 @@
     
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     document.addEventListener('DOMContentLoaded', function() {
+        // ========== BACKEND ==========
+        // Global infrastructure constants — same for all deployments.
+        const SUPABASE_URL      = 'https://kovjwdntsdiwjawewfhs.supabase.co/functions/v1/sfi';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtvdmp3ZG50c2Rpd2phd2V3ZmhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjg4NTYsImV4cCI6MjA4NzIwNDg1Nn0.rrXI2VLR6gIoWLMI24g1ig_bZ21C3wcGg2noq0iC0E4';
+
         // ========== CONFIGURATION ==========
+        // Deployment routing — add new deployments here, nothing else changes.
         const CONFIG = {
-            SUPABASE_URL: 'https://kovjwdntsdiwjawewfhs.supabase.co/functions/v1/sfi',
-            SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtvdmp3ZG50c2Rpd2phd2V3ZmhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjg4NTYsImV4cCI6MjA4NzIwNDg1Nn0.rrXI2VLR6gIoWLMI24g1ig_bZ21C3wcGg2noq0iC0E4',
             DEPLOYMENT_PRESETS: {
                 'CAA_Feb2026': {
                     displayName: 'CAA',
@@ -1881,6 +1885,16 @@
                 'McLaren_Mar2026': {
                     displayName: 'McLaren Racing',
                     addons: ['mclarenPreSection', 'mclarenSoreness', 'mclarenPerfReadiness', 'mclarenPost']
+                },
+                'Randi_SSS_Trial': {
+                    displayName: 'Randi',
+                    addons: [],
+                    // Core SSS only — no addon questions.
+                    // studyTag is included in every submission to tag this data
+                    // as the Randi stopgap trial, separate from field deployments.
+                    // TODO: Replace participantName lookup with Randi app userId.
+                    // TODO: Add protocolName field when protocol integration is scoped.
+                    studyTag: 'randi_sss_trial_2026'
                 }
             }
         };
@@ -1890,7 +1904,6 @@
         const deploymentId = urlParams.get('deployment') || '';
         const isFieldMode = deploymentId !== '';
         const activePreset = isFieldMode ? (CONFIG.DEPLOYMENT_PRESETS[deploymentId] || {}) : {};
-        const SCRIPT_URL = CONFIG.SUPABASE_URL;
         const activeAddons = isFieldMode ? (activePreset.addons || []) : [];
 
         // Show org name in header if field mode
@@ -1957,11 +1970,11 @@
         async function lookupParticipant(name) {
             if (!name) return;
             try {
-                const res = await fetch(SCRIPT_URL, {
+                const res = await fetch(SUPABASE_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                     },
                     body: JSON.stringify({ action: 'lookup', participantName: name, deploymentId })
                 });
@@ -2455,6 +2468,8 @@
                 action: 'submit',
                 participantName: participantName,
                 deploymentId: deploymentId,
+                ...(activePreset.studyTag ? { studyTag: activePreset.studyTag } : {}),
+                ...(activePreset.studyTag ? { studyTag: activePreset.studyTag } : {}),
                 sessionId: sessionId,
                 consent: consent || 'yes',
                 age: ageToSubmit,
@@ -2497,11 +2512,11 @@
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 45000); // 45s hard timeout
-                const res = await fetch(SCRIPT_URL, {
+                const res = await fetch(SUPABASE_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                     },
                     body: JSON.stringify(payload),
                     signal: controller.signal
@@ -2590,7 +2605,7 @@
                          + '\n                    <div class="vas-question">' + q.question + '</div>'
                          + '\n                    <div class="vas-slider-container">'
                          + '\n                        <div class="vas-labels"><span>' + q.labelLow + '</span><span>' + q.labelHigh + '</span></div>'
-                         + '\n                        <input type="range" class="vas-slider" id="addon_' + q.field + '" min="0" max="100" value="50">'
+                         + '\n                        <input type="range" class="vas-slider" id="addon_' + q.field + '" data-field="' + q.field + '" min="0" max="100" value="50">'
                          + '\n                        <div class="vas-value"><span id="addon_' + q.field + 'Value">&mdash;</span></div>'
                          + '\n                    </div>'
                          + '\n                </div>';
@@ -2673,13 +2688,13 @@
             mentalReadiness: {
                 insertAfter: 'vasItem_mentalQuiet', timing: 'both',
                 questions: [
-                    { type: 'vas', field: 'mentalReadiness', question: 'How mentally ready do you feel right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
+                    { type: 'vas', field: 'addonMentalReadiness', question: 'How mentally ready do you feel right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
                 ],
             },
             soreness: {
                 insertAfter: 'vasItem_bodyConnection', timing: 'both',
                 questions: [
-                    { type: 'vas', field: 'Soreness', question: 'Rate your current muscle soreness.', labelLow: 'None', labelHigh: 'Severe' },
+                    { type: 'vas', field: 'addonSoreness', question: 'Rate your current muscle soreness.', labelLow: 'None', labelHigh: 'Severe' },
                 ],
             },
             menstrual: {
@@ -2867,13 +2882,13 @@
             mclarenSoreness: {
                 insertAfter: 'vasItem_bodyConnection', timing: 'both',
                 questions: [
-                    { type: 'vas', field: 'MclSoreness', question: 'How sore does your body feel right now?', labelLow: 'Not Sore', labelHigh: 'Extremely Sore' },
+                    { type: 'vas', field: 'addonMclSoreness', question: 'How sore does your body feel right now?', labelLow: 'Not Sore', labelHigh: 'Extremely Sore' },
                 ],
             },
             mclarenPerfReadiness: {
                 insertAfter: 'vasItem_alertness', timing: 'both',
                 questions: [
-                    { type: 'vas', field: 'MclPerfReadiness', question: 'How ready do you feel to perform your job right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
+                    { type: 'vas', field: 'addonMclPerfReadiness', question: 'How ready do you feel to perform your job right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
                 ],
             },
             mclarenPost: {
@@ -2946,6 +2961,7 @@
                     slider.addEventListener('input', () => {
                         doEngage();
                         valueDisplay.textContent = slider.value;
+                        if (slider.dataset.field) addonValues[slider.dataset.field] = parseInt(slider.value);
                         updateProgress();
                     });
                 }
