@@ -2173,12 +2173,19 @@
 
         function showWelcomeBack() {
             hideContinueBtn();
-            // Returning participants: hide usage count question, auto-show conditional block
+            // Returning participants: hide onboarding-only questions, auto-show conditional blocks
             // (we already know they're non-first-timers from the key table)
             const usageBlock = document.getElementById('caaUsageCountBlock');
             if (usageBlock) usageBlock.classList.add('hidden');
             const caaC = document.getElementById('caaConditional');
             if (caaC) caaC.classList.remove('hidden');
+            // McLaren: hide role + usage count, auto-reveal conditional
+            const mclRoleBlock = document.getElementById('mclRoleBlock');
+            if (mclRoleBlock) mclRoleBlock.classList.add('hidden');
+            const mclUsageBlock = document.getElementById('mclUsageCountBlock');
+            if (mclUsageBlock) mclUsageBlock.classList.add('hidden');
+            const mclC = document.getElementById('mclConditional');
+            if (mclC) mclC.classList.remove('hidden');
             // Names stay editable until submission — wrong match can be corrected
             // Do NOT lock timing here — returning users on a fresh load should be
             // able to choose pre or post (e.g., catching up a missed post-session).
@@ -2610,7 +2617,7 @@
                          + '\n                </div>';
 
                 case 'singleSelect':
-                    return '\n                <div class="addon-question-block">'
+                    return '\n                <div class="addon-question-block"' + (q.id ? ' id="' + q.id + '"' : '') + '>'
                          + '\n                    <div class="addon-question">' + q.question + '</div>'
                          + '\n                    <div class="addon-ss-group" data-field="' + q.field + '"'
                          + (q.conditionalTarget ? ' data-conditional-target="' + q.conditionalTarget + '"' : '')
@@ -2722,7 +2729,7 @@
                 required: { pre: ['caaUsageCount', 'caaPromptedBy'] },
                 questions: [
                     { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
-                    { type: 'singleSelect', field: 'caaUsageCount',
+                    { type: 'singleSelect', field: 'caaUsageCount', id: 'caaUsageCountBlock',
                       question: 'How many times have you used the Shiftwave chair before today?',
                       conditionalTarget: 'caaConditional',
                       options: [
@@ -2811,7 +2818,7 @@
                 required: { pre: ['mclRole', 'mclUsageCount', 'mclPromptedBy'] },
                 questions: [
                     { type: 'sectionHeader', label: 'Role &amp; Usage' },
-                    { type: 'singleSelect', field: 'mclRole',
+                    { type: 'singleSelect', field: 'mclRole', id: 'mclRoleBlock',
                       question: 'What is your role?',
                       options: [
                         { value: 'driver',     label: 'Driver' },
@@ -2822,7 +2829,7 @@
                         { value: 'physio',     label: 'Physiotherapist / Trainer' },
                         { value: 'other',      label: 'Other' },
                     ]},
-                    { type: 'singleSelect', field: 'mclUsageCount',
+                    { type: 'singleSelect', field: 'mclUsageCount', id: 'mclUsageCountBlock',
                       question: 'How many times have you used the Shiftwave chair before today?',
                       conditionalTarget: 'mclConditional',
                       options: [
@@ -3054,10 +3061,12 @@
                     required.push(...collectRequiredFields(addon.questions));
                 }
             });
-            // Returning participants skip the usage count question — not required for them
+            // Returning participants skip onboarding questions — not required for them
             if (participantStatus === 'returning') {
-                const idx = required.indexOf('caaUsageCount');
-                if (idx > -1) required.splice(idx, 1);
+                ['caaUsageCount', 'mclRole', 'mclUsageCount'].forEach(function(f) {
+                    const idx = required.indexOf(f);
+                    if (idx > -1) required.splice(idx, 1);
+                });
             }
             return required;
         }
@@ -3327,6 +3336,12 @@
             if (usageBlock) usageBlock.classList.remove('hidden');
             const caaCond = document.getElementById('caaConditional');
             if (caaCond) caaCond.classList.add('hidden');
+            const mclRoleBlock = document.getElementById('mclRoleBlock');
+            if (mclRoleBlock) mclRoleBlock.classList.remove('hidden');
+            const mclUsageBlock = document.getElementById('mclUsageCountBlock');
+            if (mclUsageBlock) mclUsageBlock.classList.remove('hidden');
+            const mclCond = document.getElementById('mclConditional');
+            if (mclCond) mclCond.classList.add('hidden');
         }
 
         function updateContinueBtn() {
