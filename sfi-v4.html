@@ -2577,6 +2577,11 @@
                     participantId = result.participantId;
                 }
 
+                // Persist hormonal stage for post-session Q3 conditional
+                if (timing === 'pre' && addonValues['lafdHormonalStage']) {
+                    sessionStorage.setItem('sfi_lafd_hormonal_stage', addonValues['lafdHormonalStage']);
+                }
+
                 // Lock names on submission — identity committed, consistent with timing lock logic
                 lockNames();
 
@@ -2750,7 +2755,7 @@
             if (optionalQs.length) {
                 inner += '\n<div class="optional-block">'
                        + '\n    <div class="optional-block-label">Optional</div>'
-                       + '\n    <div class="optional-context-banner">At Shiftwave, we\'re committed to better understanding female physiology and how nervous system regulation may support women\'s health. The following questions are optional and help us continue improving our products to better serve women across all stages of life. Your responses are completely confidential and will only be used in aggregate to inform our research and product development.</div>'
+                       + '\n    <div class="optional-context-banner">At Shiftwave, we\'re committed to better understanding female physiology and how nervous system regulation may support women\'s health. These optional questions help us better serve women across all stages of life. Your responses are completely confidential and used only in aggregate for research purposes.</div>'
                        + '\n    ' + optionalQs.map(renderQuestion).join('\n    ')
                        + '\n</div>';
             }
@@ -3408,6 +3413,12 @@
 
             // Clear addon selections
             addonValues = {};
+            // For LAFD post: re-seed lafdHormonalStage from sessionStorage so Q3 showIfAnswered works
+            const storedHormonalStage = sessionStorage.getItem('sfi_lafd_hormonal_stage');
+            if (storedHormonalStage) {
+                addonValues['lafdHormonalStage'] = storedHormonalStage;
+                updateShowIf();
+            }
             document.querySelectorAll('.addon-ss-btn.selected, .addon-nps-btn.selected, .addon-l5-btn.selected')
                 .forEach(b => b.classList.remove('selected'));
             // Reset conditionals
@@ -3596,6 +3607,8 @@
             document.getElementById('nameRow').classList.add('hidden');
             document.getElementById('nameContinueBtn').classList.add('hidden');
             document.getElementById('demographicsRow').classList.add('hidden');
+            document.getElementById('setupSection').classList.add('hidden');
+            document.getElementById('newParticipantBanner').classList.add('hidden');
             participantId = anonId;
             participantStatus = 'new';
             showConsentGate(timing);
