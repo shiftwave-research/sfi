@@ -2628,14 +2628,21 @@
         // Supported types: sectionHeader, sectionDescription, vas, singleSelect,
         //                  multiSelect, likert5, nps, conditional
 
-        // Wraps a rendered question in a showIf container if the question has a showIf property.
-        // data-showif-value is JSON so it can hold either a string or an array.
+        // Wraps a rendered question in a showIf or showIfAnswered container.
         function wrapShowIf(q, html) {
-            if (!q.showIf) return html;
-            var val = JSON.stringify(q.showIf.value);
-            return '<div class="addon-showif hidden" data-showif-field="' + q.showIf.field + '" data-showif-value=\'' + val + '\'>'
-                 + html
-                 + '</div>';
+            if (q.showIf) {
+                var val = JSON.stringify(q.showIf.value);
+                return '<div class="addon-showif hidden" data-showif-field="' + q.showIf.field + '" data-showif-value=\'' + val + '\'>'
+                     + html
+                     + '</div>';
+            }
+            if (q.showIfAnswered) {
+                var excl = JSON.stringify(q.showIfAnswered.exclude || []);
+                return '<div class="addon-showif-answered hidden" data-showanswered-field="' + q.showIfAnswered.field + '" data-showanswered-exclude=\'' + excl + '\'>'
+                     + html
+                     + '</div>';
+            }
+            return html;
         }
 
         function renderQuestion(q) {
@@ -3013,7 +3020,7 @@
             lafdPre: {
                 insertAfter: 'surveyBodyStart',
                 timing: 'pre',
-                required: { pre: ['lafdRole', 'lafdShiftTiming'] },
+                required: { pre: ['lafdRole', 'lafdShiftTiming', 'lafdAgeBracket'] },
                 questions: [
                     { type: 'sectionHeader', label: 'About You' },
                     { type: 'singleSelect', field: 'lafdRole',
@@ -3038,23 +3045,32 @@
                         { value: '3_plus_days',     label: '3 or more days' },
                         { value: 'standard_hours',  label: 'I work standard business hours' },
                     ]},
+                    { type: 'singleSelect', field: 'lafdAgeBracket',
+                      question: 'What is your age?',
+                      options: [
+                        { value: 'under_30', label: 'Under 30' },
+                        { value: '30_39',    label: '30\u201339' },
+                        { value: '40_49',    label: '40\u201349' },
+                        { value: '50_59',    label: '50\u201359' },
+                        { value: '60_plus',  label: '60 or older' },
+                    ]},
                     // optionalBlock:true marks the split point — everything after renders
-                    // inside .optional-block. This object itself is not rendered as a question.
+                    // inside .optional-block with context paragraph above.
                     { optionalBlock: true },
                     { type: 'singleSelect', field: 'lafdHormonalStage',
                       required: false,
                       question: 'Which best describes your current hormonal life stage?',
                       options: [
-                        { value: 'regular_cycles',   label: 'Regular menstrual cycles' },
-                        { value: 'irregular_cycles', label: 'Irregular or changing cycles' },
-                        { value: 'no_periods',       label: 'No longer have periods' },
-                        { value: 'pregnant_pp',      label: 'Pregnant or postpartum' },
-                        { value: 'prefer_not',       label: 'Prefer not to say' },
+                        { value: 'regular_cycles',  label: 'Regular menstrual cycles' },
+                        { value: 'perimenopause',   label: 'Perimenopause (irregular or changing cycles)' },
+                        { value: 'post_menopause',  label: 'Post-menopause (no longer have periods)' },
+                        { value: 'pregnant_pp',     label: 'Pregnant or postpartum' },
+                        { value: 'prefer_not',      label: 'Prefer not to say' },
                     ]},
                     { type: 'singleSelect', field: 'lafdCyclePhase',
                       required: false,
                       question: 'Roughly where are you in your cycle right now?',
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'irregular_cycles'] },
+                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'perimenopause'] },
                       options: [
                         { value: 'menstrual',   label: 'Menstrual (period)' },
                         { value: 'follicular',  label: 'Follicular (post-period, pre-ovulation)' },
@@ -3062,10 +3078,23 @@
                         { value: 'luteal',      label: 'Luteal (pre-period)' },
                         { value: 'not_sure',    label: 'Not sure' },
                     ]},
-                    { type: 'singleSelect', field: 'lafdSymptomSeverity',
+                    // P5a — menstrual symptoms (regular cycles and perimenopause)
+                    { type: 'singleSelect', field: 'lafdMenstrualSymptoms',
                       required: false,
-                      question: "Rate the severity of any menstrual symptoms you're experiencing right now.",
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'irregular_cycles'] },
+                      question: 'Rate the severity of any menstrual symptoms you\'re experiencing right now.',
+                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'perimenopause'] },
+                      options: [
+                        { value: 'none',     label: 'None' },
+                        { value: 'mild',     label: 'Mild' },
+                        { value: 'moderate', label: 'Moderate' },
+                        { value: 'severe',   label: 'Severe' },
+                    ]},
+                    // P5b — perimenopausal/menopausal symptoms (perimenopause and post-menopause)
+                    // Perimenopausal women intentionally see both P5a and P5b.
+                    { type: 'singleSelect', field: 'lafdMenopauseSymptoms',
+                      required: false,
+                      question: 'Rate the severity of any perimenopausal or menopausal symptoms you\'re experiencing right now.',
+                      showIf: { field: 'lafdHormonalStage', value: ['perimenopause', 'post_menopause'] },
                       options: [
                         { value: 'none',     label: 'None' },
                         { value: 'mild',     label: 'Mild' },
@@ -3091,6 +3120,17 @@
                         { value: 'home_wellness', label: 'At home, for personal wellness' },
                         { value: 'not_work',      label: "I wouldn't use it in a work context" },
                         { value: 'not_sure',      label: "I'm not sure yet" },
+                    ]},
+                    // Q3: shown only if P3 (lafdHormonalStage) was answered and not 'prefer_not'
+                    { type: 'singleSelect', field: 'lafdHormonalAttribution',
+                      required: false,
+                      question: 'Did today\'s session help ease any symptoms related to your hormonal health?',
+                      showIfAnswered: { field: 'lafdHormonalStage', exclude: ['prefer_not'] },
+                      options: [
+                        { value: 'yes_noticeably', label: 'Yes, noticeably' },
+                        { value: 'somewhat',       label: 'Somewhat' },
+                        { value: 'not_really',     label: 'Not that I could tell' },
+                        { value: 'no_symptoms',    label: 'I wasn\'t experiencing symptoms today' },
                     ]},
                 ],
             },
@@ -3242,6 +3282,15 @@
                 var current = addonValues[field];
                 var match = Array.isArray(trigger) ? trigger.indexOf(current) !== -1 : current === trigger;
                 el.classList.toggle('hidden', !match);
+            });
+            // showIfAnswered: show when field is answered and value not in exclude list
+            document.querySelectorAll('.addon-showif-answered').forEach(function(el) {
+                var field = el.dataset.showansweredField;
+                var exclude = JSON.parse(el.dataset.showansweredExclude || '[]');
+                var current = addonValues[field];
+                var answered = current !== undefined && current !== null && current !== '';
+                var excluded = exclude.indexOf(current) !== -1;
+                el.classList.toggle('hidden', !answered || excluded);
             });
         }
 
@@ -3534,6 +3583,7 @@
         if (isAnonymousMode) {
             document.getElementById('nameRow').classList.add('hidden');
             document.getElementById('nameContinueBtn').classList.add('hidden');
+            document.getElementById('demographicsRow').classList.add('hidden');
             participantId = anonId;
             participantStatus = 'new';
             showConsentGate(timing);
