@@ -1511,7 +1511,7 @@
             <p>~60 seconds &bull; All responses confidential</p>
         </div>
         
-        <!-- Setup: name entry + demographics. Hidden entirely in anonymous mode. -->
+        <!-- Setup: name entry. Hidden entirely in anonymous mode. -->
         <div class="setup-section" id="setupSection">
             <div class="field-row" id="nameRow">
                 <div class="field">
@@ -1524,8 +1524,12 @@
                 </div>
             </div>
             <button type="button" id="nameContinueBtn" disabled onclick="triggerLookupIfReady()">Continue →</button>
-            <!-- Age + Sex: revealed for new participants only, hidden for returning, pre-session only -->
-            <div class="field-row hidden" id="demographicsRow">
+        </div>
+
+        <!-- Demographics: revealed for new participants only, pre-session only.
+             Separate card from name entry — same flow step, distinct data type. -->
+        <div class="setup-section hidden" id="demographicsRow">
+            <div class="field-row">
                 <div class="field">
                     <label>Age</label>
                     <input type="number" id="participantAge" placeholder="e.g., 34" min="10" max="100" autocomplete="off">
@@ -2731,6 +2735,7 @@
                          + (q.hint ? ' <span style="font-size:0.75em;color:#888;font-weight:400;">' + q.hint + '</span>' : '')
                          + '</div>'
                          + '\n                    <div class="addon-ss-group" data-field="' + q.field + '" data-multiselect="true"'
+                         + (q.exclusiveValues ? ' data-exclusive-values=\'' + JSON.stringify(q.exclusiveValues) + '\'' : '')
                          + (q.exclusiveValue ? ' data-exclusive="' + q.exclusiveValue + '"' : '')
                          + '>\n                        '
                          + q.options.map(function(o){ return '<button class="addon-ss-btn" data-value="' + o.value + '">' + o.label + '</button>'; }).join('\n                        ')
@@ -2859,7 +2864,7 @@
                         { value: '10plus',     label: 'More than 10 times' },
                     ]},
                     { type: 'singleSelect', field: 'caaPromptedBy',
-                      question: 'What brought you to Shiftwave today?',
+                      question: 'What\'s your main reason for using Shiftwave today?',
                       options: [
                         { value: 'stress_anxiety', label: 'Stress or anxiety' },
                         { value: 'relax',          label: 'To relax / unwind' },
@@ -3164,6 +3169,7 @@
                     { type: 'multiSelect', field: 'lafdUsageContext',
                       question: 'Where could you see yourself using Shiftwave?',
                       hint: 'Select all that apply',
+                      exclusiveValues: ['not_work', 'not_sure'],
                       options: [
                         { value: 'after_shift',   label: 'After a shift, for decompression and recovery' },
                         { value: 'before_shift',  label: 'Before a shift, to get mentally ready' },
@@ -3354,19 +3360,24 @@
                 if (group) {
                     const isMulti = group.dataset.multiselect === 'true';
                     const exclusiveVal = group.dataset.exclusive || null;
+                    // exclusiveValues: JSON array of values that each act as exclusive (clear all others when selected,
+                    // and get cleared when any non-exclusive option is selected)
+                    const exclusiveVals = group.dataset.exclusiveValues
+                        ? JSON.parse(group.dataset.exclusiveValues)
+                        : (exclusiveVal ? [exclusiveVal] : []);
                     const clickedVal = ssBtn.dataset.value;
 
                     if (isMulti) {
-                        if (exclusiveVal && clickedVal === exclusiveVal) {
+                        if (exclusiveVals.includes(clickedVal)) {
                             // Exclusive option selected — clear all others, select only this
                             group.querySelectorAll('.addon-ss-btn').forEach(b => b.classList.remove('selected'));
                             ssBtn.classList.add('selected');
                         } else {
-                            // Regular multi-select toggle — deselect exclusive if active
-                            if (exclusiveVal) {
-                                group.querySelectorAll(`.addon-ss-btn[data-value="${exclusiveVal}"]`)
+                            // Regular multi-select toggle — deselect any active exclusive options
+                            exclusiveVals.forEach(ev => {
+                                group.querySelectorAll(`.addon-ss-btn[data-value="${ev}"]`)
                                     .forEach(b => b.classList.remove('selected'));
-                            }
+                            });
                             ssBtn.classList.toggle('selected');
                         }
                         // Collect all selected values as pipe-separated string
