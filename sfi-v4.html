@@ -1483,7 +1483,7 @@
         
         <!-- Setup -->
         <div class="setup-section" id="setupSection">
-            <div class="field-row">
+        <div class="field-row" id="nameRow">
                 <div class="field">
                     <label>First Name</label>
                     <input type="text" id="firstName" placeholder="First" autocomplete="given-name" spellcheck="false">
@@ -1917,7 +1917,8 @@
                 },
                 'LAFD_Mar2026': {
                     displayName: "LAFD Women's Wellness Workshop",
-                    addons: ['lafdPre', 'lafdPost']
+                    addons: ['lafdPre', 'lafdPost'],
+                    anonymousMode: true
                 }
             }
         };
@@ -1928,6 +1929,17 @@
         const isFieldMode = deploymentId !== '';
         const activePreset = isFieldMode ? (CONFIG.DEPLOYMENT_PRESETS[deploymentId] || {}) : {};
         const activeAddons = isFieldMode ? (activePreset.addons || []) : [];
+
+        // ── Anonymous mode ──────────────────────────────────────────────────────
+        // Deployments with anonymousMode:true bypass name entry and key table.
+        // A random ANON-XXXXXX ID is generated per page load as participantId.
+        const isAnonymousMode = !!(activePreset.anonymousMode);
+        let anonId = null;
+        if (isAnonymousMode) {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            anonId = 'ANON-' + Array.from({length: 6}, () =>
+                chars[Math.floor(Math.random() * chars.length)]).join('');
+        }
 
         // Show org name in header if field mode
         if (isFieldMode && activePreset.displayName) {
@@ -2324,12 +2336,14 @@
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
             const protocol = document.getElementById('protocol').value.trim();
-            if (!firstName) missing.push({ type: 'setup', id: 'firstName', label: 'First Name' });
-            if (!lastName) missing.push({ type: 'setup', id: 'lastName', label: 'Last Name' });
+            if (!isAnonymousMode) {
+                if (!firstName) missing.push({ type: 'setup', id: 'firstName', label: 'First Name' });
+                if (!lastName) missing.push({ type: 'setup', id: 'lastName', label: 'Last Name' });
+            }
             if (!protocol) missing.push({ type: 'setup', id: 'protocol', label: 'Protocol' });
 
-            // Age and sex Ã¢â‚¬â€ only required for new participants (returning have them in key table)
-            if (participantStatus !== 'returning') {
+            // Age and sex -- skipped for anonymous mode (addon handles demographics)
+            if (!isAnonymousMode && participantStatus !== 'returning') {
                 const ageVal = document.getElementById('participantAge').value.trim();
                 const sexVal = document.getElementById('participantSex').value;
                 if (!ageVal) missing.push({ type: 'setup', id: 'participantAge', label: 'Age' });
@@ -2469,7 +2483,7 @@
                 return;
             }
             
-            const participantName = getFullName();
+            const participantName = isAnonymousMode ? anonId : getFullName();
             const protocol = document.getElementById('protocol').value.trim();
             const comment = document.getElementById('comment').value.trim();
             
@@ -3514,6 +3528,16 @@
         }
         firstNameInput.addEventListener('blur', triggerLookupIfReady);
         lastNameInput.addEventListener('blur', triggerLookupIfReady);
+
+        // ── Anonymous mode init ──────────────────────────────────────────────
+        // Hide name fields entirely, set ANON ID, go straight to consent gate.
+        if (isAnonymousMode) {
+            document.getElementById('nameRow').classList.add('hidden');
+            document.getElementById('nameContinueBtn').classList.add('hidden');
+            participantId = anonId;
+            participantStatus = 'new';
+            showConsentGate(timing);
+        }
 
         // Sex listener for progress tracking
         document.getElementById('participantSex').addEventListener('change', updateProgress);
