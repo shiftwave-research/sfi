@@ -1439,6 +1439,25 @@
             line-height: 1.5;
         }
 
+        .survey-start-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0 20px;
+            color: #4ade80;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .survey-start-divider::before,
+        .survey-start-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #2a6b3a;
+        }
+
         /* ========== PROGRESSIVE DISCLOSURE ANIMATIONS ========== */
         @keyframes revealDown {
             from { opacity: 0; transform: translateY(-10px); }
@@ -1526,6 +1545,7 @@
 
         <!-- Protocol + Timing: revealed after identity/consent resolved, for all modes -->
         <div id="protocolTimingSection" class="hidden">
+            <div class="survey-start-divider">Session Details</div>
             <div class="field-row">
                 <div class="field">
                     <label>Protocol</label>
@@ -2589,7 +2609,7 @@
 
                 // Persist hormonal stage for post-session Q3 conditional
                 if (timing === 'pre' && addonValues['lafdHormonalStage']) {
-                    sessionStorage.setItem('sfi_lafd_hormonal_stage', addonValues['lafdHormonalStage']);
+                    sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
                 }
 
                 // Lock names on submission — identity committed, consistent with timing lock logic
@@ -2597,6 +2617,7 @@
 
                 // Hide the form, show the success screen
                 document.getElementById('setupSection').classList.add('hidden');
+                document.getElementById('protocolTimingSection').classList.add('hidden');
                 document.getElementById('consentGate').classList.add('hidden');
                 document.getElementById('surveyBody').classList.add('hidden');
                 document.querySelector('.submit-section').classList.add('hidden');
@@ -2622,6 +2643,7 @@
                 if (error.name === 'AbortError') {
                     // Request already sent and likely saved — show success to avoid duplicate submissions
                     document.getElementById('setupSection').classList.add('hidden');
+                    document.getElementById('protocolTimingSection').classList.add('hidden');
                     document.getElementById('consentGate').classList.add('hidden');
                     document.getElementById('surveyBody').classList.add('hidden');
                     document.querySelector('.submit-section').classList.add('hidden');
@@ -3424,7 +3446,7 @@
             // Clear addon selections
             addonValues = {};
             // For LAFD post: re-seed lafdHormonalStage from sessionStorage so Q3 showIfAnswered works
-            const storedHormonalStage = sessionStorage.getItem('sfi_lafd_hormonal_stage');
+            const storedHormonalStage = sessionStorage.getItem('sfi_hormonal_stage_' + deploymentId);
             if (storedHormonalStage) {
                 addonValues['lafdHormonalStage'] = storedHormonalStage;
                 updateShowIf();
@@ -3491,6 +3513,7 @@
             
             // Show the form sections (name + protocol are intentionally preserved)
             if (!isAnonymousMode) document.getElementById('setupSection').classList.remove('hidden');
+            revealSection(document.getElementById('protocolTimingSection'), 0);
             document.getElementById('surveyBody').classList.remove('hidden');
             document.getElementById('successContainer').classList.add('hidden');
             document.querySelector('.submit-section').classList.remove('hidden');
