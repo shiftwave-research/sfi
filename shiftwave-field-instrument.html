@@ -1144,6 +1144,25 @@
             margin-top: -8px;
         }
 
+        /* Optional block — subtle container for non-required question groups */
+        .optional-block {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 18px 20px 10px;
+            margin: 20px 0;
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .optional-block-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.35);
+            margin-bottom: 14px;
+        }
+        /* showIf questions: hidden until trigger field matches */
+        .addon-showif.hidden { display: none; }
+
         /* Wrapper giving breathing room between questions */
         .addon-question-block {
             margin-bottom: 24px;
@@ -1895,6 +1914,10 @@
                     // TODO: Replace participantName lookup with Randi app userId.
                     // TODO: Add protocolName field when protocol integration is scoped.
                     studyTag: 'randi_sss_trial_2026'
+                },
+                'LAFD_Mar2026': {
+                    displayName: "LAFD Women's Wellness Workshop",
+                    addons: ['lafdPre', 'lafdPost']
                 }
             }
         };
@@ -2173,19 +2196,12 @@
 
         function showWelcomeBack() {
             hideContinueBtn();
-            // Returning participants: hide onboarding-only questions, auto-show conditional blocks
+            // Returning participants: hide usage count question, auto-show conditional block
             // (we already know they're non-first-timers from the key table)
             const usageBlock = document.getElementById('caaUsageCountBlock');
             if (usageBlock) usageBlock.classList.add('hidden');
             const caaC = document.getElementById('caaConditional');
             if (caaC) caaC.classList.remove('hidden');
-            // McLaren: hide role + usage count, auto-reveal conditional
-            const mclRoleBlock = document.getElementById('mclRoleBlock');
-            if (mclRoleBlock) mclRoleBlock.classList.add('hidden');
-            const mclUsageBlock = document.getElementById('mclUsageCountBlock');
-            if (mclUsageBlock) mclUsageBlock.classList.add('hidden');
-            const mclC = document.getElementById('mclConditional');
-            if (mclC) mclC.classList.remove('hidden');
             // Names stay editable until submission — wrong match can be corrected
             // Do NOT lock timing here — returning users on a fresh load should be
             // able to choose pre or post (e.g., catching up a missed post-session).
@@ -2485,11 +2501,11 @@
                 timing: timing,
                 valence: formData.valence,
                 arousal: formData.arousal,
-                bodyTension: formData.bodyTension,
+                body_tension: formData.bodyTension,
                 energy: formData.energy,
-                bodyConnection: formData.bodyConnection,
+                body_connection: formData.bodyConnection,
                 clarity: formData.clarity,
-                mentalQuiet: formData.mentalQuiet,
+                mental_quiet: formData.mentalQuiet,
                 alertness: formData.alertness,
                 pain: formData.pain,
                 stai_calm: formData.stai_calm,
@@ -2598,7 +2614,20 @@
         // Supported types: sectionHeader, sectionDescription, vas, singleSelect,
         //                  multiSelect, likert5, nps, conditional
 
+        // Wraps a rendered question in a showIf container if the question has a showIf property.
+        // data-showif-value is JSON so it can hold either a string or an array.
+        function wrapShowIf(q, html) {
+            if (!q.showIf) return html;
+            var val = JSON.stringify(q.showIf.value);
+            return '<div class="addon-showif hidden" data-showif-field="' + q.showIf.field + '" data-showif-value=\'' + val + '\'>'
+                 + html
+                 + '</div>';
+        }
+
         function renderQuestion(q) {
+            return wrapShowIf(q, renderQuestionHTML(q));
+        }
+        function renderQuestionHTML(q) {
             switch (q.type) {
                 case 'sectionHeader':
                     return '<div class="section-title"' + (q.style ? ' style="' + q.style + '"' : '') + '>' + q.label + '</div>';
@@ -2617,7 +2646,7 @@
                          + '\n                </div>';
 
                 case 'singleSelect':
-                    return '\n                <div class="addon-question-block"' + (q.id ? ' id="' + q.id + '"' : '') + '>'
+                    return '\n                <div class="addon-question-block">'
                          + '\n                    <div class="addon-question">' + q.question + '</div>'
                          + '\n                    <div class="addon-ss-group" data-field="' + q.field + '"'
                          + (q.conditionalTarget ? ' data-conditional-target="' + q.conditionalTarget + '"' : '')
@@ -2675,20 +2704,38 @@
             if (addon.timing === 'both') {
                 return addon.questions.map(renderQuestion).join('\n');
             }
+            // Split questions at the first optionalBlock:true marker.
+            // Everything before renders normally; everything after renders inside
+            // .optional-block. The marker object itself is not rendered.
+            var qs = addon.questions;
+            var splitIdx = -1;
+            for (var i = 0; i < qs.length; i++) {
+                if (qs[i].optionalBlock) { splitIdx = i; break; }
+            }
+            var requiredQs = splitIdx === -1 ? qs : qs.slice(0, splitIdx);
+            var optionalQs = splitIdx === -1 ? [] : qs.slice(splitIdx + 1);
+            var inner = requiredQs.map(renderQuestion).join('\n');
+            if (optionalQs.length) {
+                inner += '\n<div class="optional-block">'
+                       + '\n    <div class="optional-block-label">Optional</div>'
+                       + '\n    ' + optionalQs.map(renderQuestion).join('\n    ')
+                       + '\n</div>';
+            }
             // timing:'pre' and 'post' addons get a section wrapper, hidden by default,
             // shown/hidden by updateAddonVisibility() when timing is toggled.
             var timingClass = addon.timing === 'pre' ? ' addon-pre-only' : ' addon-post-only';
-            var inner = addon.questions.map(renderQuestion).join('\n');
             return '<div class="section' + timingClass + ' hidden" id="addonItem_' + addonKey + '">\n' + inner + '\n                </div>';
         }
 
         // Auto-derive required fields from a questions array.
-        // Fields inside 'conditional' blocks are intentionally excluded.
+        // Excludes: conditional blocks, questions with required:false, showIf questions.
         function collectRequiredFields(questions) {
             var fields = [];
             for (var i = 0; i < questions.length; i++) {
                 var q = questions[i];
-                if (q.field && q.type !== 'conditional') fields.push(q.field);
+                if (q.field && q.type !== 'conditional' && q.required !== false && !q.showIf) {
+                    fields.push(q.field);
+                }
             }
             return fields;
         }
@@ -2729,7 +2776,7 @@
                 required: { pre: ['caaUsageCount', 'caaPromptedBy'] },
                 questions: [
                     { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
-                    { type: 'singleSelect', field: 'caaUsageCount', id: 'caaUsageCountBlock',
+                    { type: 'singleSelect', field: 'caaUsageCount',
                       question: 'How many times have you used the Shiftwave chair before today?',
                       conditionalTarget: 'caaConditional',
                       options: [
@@ -2815,10 +2862,10 @@
             mclarenPreSection: {
                 insertAfter: 'surveyBodyStart',
                 timing: 'pre',
-                required: { pre: ['mclRole', 'mclUsageCount', 'mclPromptedBy'] },
+                required: { pre: ['mclRole', 'mclUsageCount', 'mclPrimaryReason', 'mclPromptedBy'] },
                 questions: [
                     { type: 'sectionHeader', label: 'Role &amp; Usage' },
-                    { type: 'singleSelect', field: 'mclRole', id: 'mclRoleBlock',
+                    { type: 'singleSelect', field: 'mclRole',
                       question: 'What is your role?',
                       options: [
                         { value: 'driver',     label: 'Driver' },
@@ -2829,7 +2876,7 @@
                         { value: 'physio',     label: 'Physiotherapist / Trainer' },
                         { value: 'other',      label: 'Other' },
                     ]},
-                    { type: 'singleSelect', field: 'mclUsageCount', id: 'mclUsageCountBlock',
+                    { type: 'singleSelect', field: 'mclUsageCount',
                       question: 'How many times have you used the Shiftwave chair before today?',
                       conditionalTarget: 'mclConditional',
                       options: [
@@ -2839,20 +2886,28 @@
                         { value: '6_10',       label: '6–10 times' },
                         { value: '10plus',     label: 'More than 10 times' },
                     ]},
-                    { type: 'singleSelect', field: 'mclPromptedBy',
-                      question: 'What brought you to Shiftwave today?',
+                    { type: 'singleSelect', field: 'mclPrimaryReason',
+                      question: 'What is your PRIMARY reason for using Shiftwave today?',
                       options: [
-                        { value: 'recovery',     label: 'Recovery after physical work or exertion' },
-                        { value: 'mental_reset', label: 'Mental reset or focus' },
-                        { value: 'pre_perf',     label: 'Pre-performance preparation' },
-                        { value: 'stress',       label: 'Feeling stressed or fatigued' },
-                        { value: 'relax',        label: 'To relax / unwind' },
-                        { value: 'physical',     label: 'Physical tension or soreness' },
-                        { value: 'preventative', label: 'Preventative / regular routine' },
+                        { value: 'recovery',    label: 'Recovery after physical work or exertion' },
+                        { value: 'mental_reset',label: 'Mental reset and focus' },
+                        { value: 'pre_perf',    label: 'Pre-performance preparation' },
+                        { value: 'stress',      label: 'To manage stress or tension' },
+                        { value: 'relax',       label: 'To relax / unwind after a long day' },
+                        { value: 'physical',    label: 'To relieve physical tension or soreness' },
+                        { value: 'curiosity',   label: 'Curiosity / trying it out' },
+                        { value: 'other',       label: 'Other' },
+                    ]},
+                    { type: 'singleSelect', field: 'mclPromptedBy',
+                      question: 'What prompted you to use Shiftwave TODAY?',
+                      options: [
+                        { value: 'stressed',     label: 'Feeling stressed or fatigued' },
+                        { value: 'preventative', label: 'Preventative / regular recovery routine' },
+                        { value: 'physical',     label: 'Physical soreness or discomfort' },
+                        { value: 'focus',        label: 'Trouble focusing or mentally preparing' },
                         { value: 'downtime',     label: 'Scheduled downtime' },
                         { value: 'available',    label: 'Saw the chair was available' },
                         { value: 'recommended',  label: 'Recommended by someone' },
-                        { value: 'curiosity',    label: 'Curiosity / trying it out' },
                         { value: 'other',        label: 'Other' },
                     ]},
                     { type: 'conditional', id: 'mclConditional', questions: [
@@ -2938,7 +2993,93 @@
                         { value: 'no_other_tools',  label: "I don't use other tools" },
                     ]},
                 ],
-            }
+            },
+
+            // ── LAFD Women's Wellness Workshop ──────────────────────────────
+            lafdPre: {
+                insertAfter: 'surveyBodyStart',
+                timing: 'pre',
+                required: { pre: ['lafdRole', 'lafdShiftTiming'] },
+                questions: [
+                    { type: 'sectionHeader', label: 'About You' },
+                    { type: 'singleSelect', field: 'lafdRole',
+                      question: 'What best describes your role?',
+                      options: [
+                        { value: 'firefighter',   label: 'Firefighter' },
+                        { value: 'fire_engineer',  label: 'Fire Engineer' },
+                        { value: 'captain',        label: 'Fire Captain or Company Officer' },
+                        { value: 'chief',          label: 'Battalion Chief or above' },
+                        { value: 'paramedic_emt',  label: 'Paramedic or EMT' },
+                        { value: 'prevention',     label: 'Fire Prevention or Inspector' },
+                        { value: 'dispatcher',     label: 'Dispatcher or Communications' },
+                        { value: 'admin',          label: 'Administrative or civilian staff' },
+                        { value: 'other',          label: 'Other' },
+                    ]},
+                    { type: 'singleSelect', field: 'lafdShiftTiming',
+                      question: 'How long since your last work shift ended?',
+                      options: [
+                        { value: 'on_shift',        label: 'Currently on shift' },
+                        { value: 'under_24h',       label: 'Less than 24 hours' },
+                        { value: '1_2_days',        label: '1\u20132 days' },
+                        { value: '3_plus_days',     label: '3 or more days' },
+                        { value: 'standard_hours',  label: 'I work standard business hours' },
+                    ]},
+                    // optionalBlock:true marks the split point — everything after renders
+                    // inside .optional-block. This object itself is not rendered as a question.
+                    { optionalBlock: true },
+                    { type: 'singleSelect', field: 'lafdHormonalStage',
+                      required: false,
+                      question: 'Which best describes your current hormonal life stage?',
+                      options: [
+                        { value: 'regular_cycles',   label: 'Regular menstrual cycles' },
+                        { value: 'irregular_cycles', label: 'Irregular or changing cycles' },
+                        { value: 'no_periods',       label: 'No longer have periods' },
+                        { value: 'pregnant_pp',      label: 'Pregnant or postpartum' },
+                        { value: 'prefer_not',       label: 'Prefer not to say' },
+                    ]},
+                    { type: 'singleSelect', field: 'lafdCyclePhase',
+                      required: false,
+                      question: 'Roughly where are you in your cycle right now?',
+                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'irregular_cycles'] },
+                      options: [
+                        { value: 'menstrual',   label: 'Menstrual (period)' },
+                        { value: 'follicular',  label: 'Follicular (post-period, pre-ovulation)' },
+                        { value: 'ovulation',   label: 'Around ovulation' },
+                        { value: 'luteal',      label: 'Luteal (pre-period)' },
+                        { value: 'not_sure',    label: 'Not sure' },
+                    ]},
+                    { type: 'singleSelect', field: 'lafdSymptomSeverity',
+                      required: false,
+                      question: "Rate the severity of any menstrual symptoms you're experiencing right now.",
+                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'irregular_cycles'] },
+                      options: [
+                        { value: 'none',     label: 'None' },
+                        { value: 'mild',     label: 'Mild' },
+                        { value: 'moderate', label: 'Moderate' },
+                        { value: 'severe',   label: 'Severe' },
+                    ]},
+                ],
+            },
+            lafdPost: {
+                insertAfter: 'emojiGridSection',
+                timing: 'post',
+                questions: [
+                    { type: 'vas', field: 'lafdSessionUtility',
+                      question: 'How well did this session meet your needs today?',
+                      labelLow: 'Not at all', labelHigh: 'Completely' },
+                    { type: 'multiSelect', field: 'lafdUsageContext',
+                      question: 'Where could you see yourself using Shiftwave?',
+                      hint: 'Select all that apply',
+                      options: [
+                        { value: 'after_shift',   label: 'After a shift, for decompression and recovery' },
+                        { value: 'before_shift',  label: 'Before a shift, to get mentally ready' },
+                        { value: 'firehouse',     label: 'During downtime at the firehouse' },
+                        { value: 'home_wellness', label: 'At home, for personal wellness' },
+                        { value: 'not_work',      label: "I wouldn't use it in a work context" },
+                        { value: 'not_sure',      label: "I'm not sure yet" },
+                    ]},
+                ],
+            },
         };
 
         // REGISTRY END ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â injection below
@@ -3057,22 +3198,38 @@
                     const both   = addon.required.both || [];
                     required.push(...fields, ...both);
                 } else if (addon.questions) {
-                    // Auto-derive from questions array (skips conditional sub-questions)
-                    required.push(...collectRequiredFields(addon.questions));
+                    // Auto-derive from questions array — but only for addons
+                    // that are visible at the current timing.
+                    // timing:'both' addons are always visible.
+                    // timing:'pre'/'post' addons only count at their respective timing.
+                    if (addon.timing === 'both' || addon.timing === timing) {
+                        required.push(...collectRequiredFields(addon.questions));
+                    }
                 }
             });
-            // Returning participants skip onboarding questions — not required for them
+            // Returning participants skip the usage count question — not required for them
             if (participantStatus === 'returning') {
-                ['caaUsageCount', 'mclRole', 'mclUsageCount'].forEach(function(f) {
-                    const idx = required.indexOf(f);
-                    if (idx > -1) required.splice(idx, 1);
-                });
+                const idx = required.indexOf('caaUsageCount');
+                if (idx > -1) required.splice(idx, 1);
             }
             return required;
         }
 
         // Inject addons on load
         injectAddons();
+
+        // ========== SHOW/IF VISIBILITY ==========
+        // Called after any addon singleSelect changes. Scans all showIf containers
+        // and shows/hides based on current addonValues.
+        function updateShowIf() {
+            document.querySelectorAll('.addon-showif').forEach(function(el) {
+                var field = el.dataset.showifField;
+                var trigger = JSON.parse(el.dataset.showifValue);
+                var current = addonValues[field];
+                var match = Array.isArray(trigger) ? trigger.indexOf(current) !== -1 : current === trigger;
+                el.classList.toggle('hidden', !match);
+            });
+        }
 
         // ========== ADDON EVENT DELEGATION ==========
         document.getElementById('surveyContainer').addEventListener('click', function(e) {
@@ -3114,6 +3271,7 @@
                         const target = document.getElementById(group.dataset.conditionalTarget);
                         if (target) target.classList.toggle('hidden', clickedVal === 'first_time');
                     }
+                    updateShowIf();
                     updateProgress();
                 }
             }
@@ -3336,12 +3494,6 @@
             if (usageBlock) usageBlock.classList.remove('hidden');
             const caaCond = document.getElementById('caaConditional');
             if (caaCond) caaCond.classList.add('hidden');
-            const mclRoleBlock = document.getElementById('mclRoleBlock');
-            if (mclRoleBlock) mclRoleBlock.classList.remove('hidden');
-            const mclUsageBlock = document.getElementById('mclUsageCountBlock');
-            if (mclUsageBlock) mclUsageBlock.classList.remove('hidden');
-            const mclCond = document.getElementById('mclConditional');
-            if (mclCond) mclCond.classList.add('hidden');
         }
 
         function updateContinueBtn() {
