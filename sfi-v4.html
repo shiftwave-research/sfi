@@ -2247,12 +2247,23 @@
 
         function showWelcomeBack() {
             hideContinueBtn();
-            // Returning participants: hide usage count question, auto-show conditional block
-            // (we already know they're non-first-timers from the key table)
-            const usageBlock = document.getElementById('caaUsageCountBlock');
-            if (usageBlock) usageBlock.classList.add('hidden');
-            const caaC = document.getElementById('caaConditional');
-            if (caaC) caaC.classList.remove('hidden');
+            // Returning participants: hide any question with skipIfReturning:true,
+            // and auto-show their associated conditionalTarget blocks.
+            // This replaces hardcoded caaUsageCountBlock/caaConditional references.
+            activeAddons.forEach(addonKey => {
+                const addon = ADDON_REGISTRY[addonKey];
+                if (!addon || !addon.questions) return;
+                addon.questions.forEach(q => {
+                    if (q.skipIfReturning && q.blockId) {
+                        const block = document.getElementById(q.blockId);
+                        if (block) block.classList.add('hidden');
+                    }
+                    if (q.skipIfReturning && q.conditionalTarget) {
+                        const target = document.getElementById(q.conditionalTarget);
+                        if (target) target.classList.remove('hidden');
+                    }
+                });
+            });
             // Names stay editable until submission — wrong match can be corrected
             // Do NOT lock timing here — returning users on a fresh load should be
             // able to choose pre or post (e.g., catching up a missed post-session).
@@ -2330,11 +2341,13 @@
         
         // ========== NAME LOCK ==========
         function lockNames() {
+            if (isAnonymousMode) return;
             document.getElementById('firstName').classList.add('field-locked');
             document.getElementById('lastName').classList.add('field-locked');
         }
 
         function unlockNames() {
+            if (isAnonymousMode) return;
             document.getElementById('firstName').classList.remove('field-locked');
             document.getElementById('lastName').classList.remove('field-locked');
         }
@@ -2677,8 +2690,10 @@
         }
         
         // ========== ADDON RENDERER ==========
-        // Renders question definitions to HTML. Addon entries use either legacy `html`
-        // (string, passes through unchanged) or new `questions` (array, rendered here).
+        // Renders question definitions to HTML. All active addons use the structured
+        // `questions` array format. The `html` string property is retained as an explicit
+        // escape hatch for one-off raw HTML injection — it is not used by any current addon
+        // and should not be used for new ones. Remove if still unused at next major audit.
         // Supported types: sectionHeader, sectionDescription, vas, singleSelect,
         //                  multiSelect, likert5, nps, conditional
 
@@ -2774,7 +2789,7 @@
         }
 
         function renderAddonHTML(addonKey, addon) {
-            if (addon.html) return addon.html; // backward-compat: legacy string entries pass through unchanged
+            if (addon.html) return addon.html; // escape hatch: raw HTML string, not used by any current addon
             // timing:'both' addons (e.g. atomic VAS sliders) render without a wrapper —
             // they sit inline with the SSS VAS items and are always visible.
             if (addon.timing === 'both') {
@@ -2855,6 +2870,7 @@
                     { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
                     { type: 'singleSelect', field: 'caaUsageCount',
                       blockId: 'caaUsageCountBlock',
+                      skipIfReturning: true,
                       question: 'How many times have you used the Shiftwave chair before today?',
                       conditionalTarget: 'caaConditional',
                       options: [
@@ -3319,10 +3335,18 @@
                     }
                 }
             });
-            // Returning participants skip the usage count question — not required for them
+            // Returning participants skip any question flagged skipIfReturning
             if (participantStatus === 'returning') {
-                const idx = required.indexOf('caaUsageCount');
-                if (idx > -1) required.splice(idx, 1);
+                activeAddons.forEach(addonKey => {
+                    const addon = ADDON_REGISTRY[addonKey];
+                    if (!addon || !addon.questions) return;
+                    addon.questions.forEach(q => {
+                        if (q.skipIfReturning && q.field) {
+                            const idx = required.indexOf(q.field);
+                            if (idx > -1) required.splice(idx, 1);
+                        }
+                    });
+                });
             }
             return required;
         }
@@ -3467,11 +3491,23 @@
             }
             document.querySelectorAll('.addon-ss-btn.selected, .addon-nps-btn.selected, .addon-l5-btn.selected')
                 .forEach(b => b.classList.remove('selected'));
-            // Reset conditionals
-            const caaC = document.getElementById('caaConditional');
-            if (caaC) caaC.classList.add('hidden');
-            const mclC = document.getElementById('mclConditional');
-            if (mclC) mclC.classList.add('hidden');
+            // Reset conditionals — re-hide any conditionalTarget blocks and
+            // restore skipIfReturning blocks (they'll be re-evaluated by showWelcomeBack
+            // or showConsentGate depending on participant status).
+            activeAddons.forEach(addonKey => {
+                const addon = ADDON_REGISTRY[addonKey];
+                if (!addon || !addon.questions) return;
+                addon.questions.forEach(q => {
+                    if (q.conditionalTarget) {
+                        const target = document.getElementById(q.conditionalTarget);
+                        if (target) target.classList.add('hidden');
+                    }
+                    if (q.skipIfReturning && q.blockId) {
+                        const block = document.getElementById(q.blockId);
+                        if (block) block.classList.remove('hidden');
+                    }
+                });
+            });
 
             formData = {
                 valence: null, arousal: null,
@@ -3622,11 +3658,22 @@
             consent = null;
             participantAge = null;
             participantSex = null;
-            // Restore first-session question visibility for fresh lookup
-            const usageBlock = document.getElementById('caaUsageCountBlock');
-            if (usageBlock) usageBlock.classList.remove('hidden');
-            const caaCond = document.getElementById('caaConditional');
-            if (caaCond) caaCond.classList.add('hidden');
+            // Restore first-session question visibility for fresh lookup —
+            // re-show skipIfReturning blocks and re-hide their conditionalTargets
+            activeAddons.forEach(addonKey => {
+                const addon = ADDON_REGISTRY[addonKey];
+                if (!addon || !addon.questions) return;
+                addon.questions.forEach(q => {
+                    if (q.skipIfReturning && q.blockId) {
+                        const block = document.getElementById(q.blockId);
+                        if (block) block.classList.remove('hidden');
+                    }
+                    if (q.skipIfReturning && q.conditionalTarget) {
+                        const target = document.getElementById(q.conditionalTarget);
+                        if (target) target.classList.add('hidden');
+                    }
+                });
+            });
         }
 
         function updateContinueBtn() {
