@@ -1956,7 +1956,8 @@
                 'LAFD_Mar2026': {
                     displayName: "LAFD Women's Wellness Workshop",
                     addons: ['lafdPre', 'lafdPost'],
-                    anonymousMode: true
+                    anonymousMode: true,
+                    defaultProtocol: 'Hormone Resilience'
                 }
             }
         };
@@ -3667,7 +3668,7 @@
             'Das Optimizer','Das Optimizer Express','Day At The Beach','Deep Love',
             'Disco Nap','Disco Nap BioDrive','Disco Nap Express','Emerald Wolf','Evolver',
             'Extended Relief','For Kids (6-9)','For Kids (9-12)','Get In The Zone',
-            'Guided Alignment','HRV BioDrive Intro','Inner Performance 1',
+            'Guided Alignment','Hormone Resilience','HRV BioDrive Intro','Inner Performance 1',
             'Inner Performance 1: Mastering the Foundation',
             'Inner Performance 2: The Samurai Mind',
             'Inner Performance 3: The Power of Letting Go',
@@ -3693,6 +3694,12 @@
         const protocolInput = document.getElementById('protocol');
         const protocolList = document.getElementById('protocolList');
         let protocolHighlightIndex = -1;
+
+        // Pre-fill protocol if preset specifies a default
+        if (activePreset.defaultProtocol) {
+            protocolInput.value = activePreset.defaultProtocol;
+            updateProgress();
+        }
 
         function renderProtocolList(query) {
             const q = query.toLowerCase();
