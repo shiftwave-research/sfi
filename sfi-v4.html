@@ -1428,6 +1428,17 @@
             font-weight: 500;
         }
 
+        .optional-context-banner {
+            background: #2a0f1e;
+            border: 1px solid #7a2a50;
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            color: #f9a8d4;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
         /* ========== PROGRESSIVE DISCLOSURE ANIMATIONS ========== */
         @keyframes revealDown {
             from { opacity: 0; transform: translateY(-10px); }
@@ -2231,7 +2242,7 @@
         function showConsentGate(timing) {
             hideContinueBtn();
             revealSection(document.getElementById('newParticipantBanner'), 0);
-            if (timing === 'pre') {
+            if (timing === 'pre' && !isAnonymousMode) {
                 revealSection(document.getElementById('demographicsRow'), 150);
                 revealSection(document.getElementById('consentGate'), 350);
             } else {
@@ -2739,6 +2750,7 @@
             if (optionalQs.length) {
                 inner += '\n<div class="optional-block">'
                        + '\n    <div class="optional-block-label">Optional</div>'
+                       + '\n    <div class="optional-context-banner">At Shiftwave, we\'re committed to better understanding female physiology and how nervous system regulation may support women\'s health. The following questions are optional and help us continue improving our products to better serve women across all stages of life. Your responses are completely confidential and will only be used in aggregate to inform our research and product development.</div>'
                        + '\n    ' + optionalQs.map(renderQuestion).join('\n    ')
                        + '\n</div>';
             }
