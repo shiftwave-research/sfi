@@ -3198,8 +3198,13 @@
                     const both   = addon.required.both || [];
                     required.push(...fields, ...both);
                 } else if (addon.questions) {
-                    // Auto-derive from questions array (skips conditional sub-questions)
-                    required.push(...collectRequiredFields(addon.questions));
+                    // Auto-derive from questions array — but only for addons
+                    // that are visible at the current timing.
+                    // timing:'both' addons are always visible.
+                    // timing:'pre'/'post' addons only count at their respective timing.
+                    if (addon.timing === 'both' || addon.timing === timing) {
+                        required.push(...collectRequiredFields(addon.questions));
+                    }
                 }
             });
             // Returning participants skip the usage count question — not required for them
