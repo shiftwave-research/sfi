@@ -1543,6 +1543,9 @@
             </div>
         </div>
 
+        <!-- Welcome back banner: sits between name entry and session details -->
+        <div id="welcomeBanner" class="hidden"></div>
+
         <!-- Protocol + Timing: revealed after identity/consent resolved, for all modes -->
         <div id="protocolTimingSection" class="hidden">
             <div class="survey-start-divider">Session Details</div>
@@ -1566,8 +1569,6 @@
             </div>
         </div>
         
-        <!-- Welcome back banner (returning participants) -->
-        <div id="welcomeBanner" class="hidden"></div>
 
         <!-- New participant banner -->
         <div id="newParticipantBanner" class="hidden">✦ Welcome — please read and accept consent below to begin</div>
@@ -2715,7 +2716,7 @@
                          + '\n                </div>';
 
                 case 'singleSelect':
-                    return '\n                <div class="addon-question-block">'
+                    return '\n                <div class="addon-question-block"' + (q.blockId ? ' id="' + q.blockId + '"' : '') + '>'
                          + '\n                    <div class="addon-question">' + q.question + '</div>'
                          + '\n                    <div class="addon-ss-group" data-field="' + q.field + '"'
                          + (q.conditionalTarget ? ' data-conditional-target="' + q.conditionalTarget + '"' : '')
@@ -2847,6 +2848,7 @@
                 questions: [
                     { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
                     { type: 'singleSelect', field: 'caaUsageCount',
+                      blockId: 'caaUsageCountBlock',
                       question: 'How many times have you used the Shiftwave chair before today?',
                       conditionalTarget: 'caaConditional',
                       options: [
