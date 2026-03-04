@@ -1548,7 +1548,7 @@
         <div id="welcomeBanner" class="hidden"></div>
 
         <!-- New participant banner -->
-        <div id="newParticipantBanner" class="hidden">✦ First visit — fill in your info above, then review & accept consent below</div>
+        <div id="newParticipantBanner" class="hidden">✦ Welcome — please read and accept consent below to begin</div>
 
         <!-- Consent Gate (new participants) -->
         <div id="consentGate" class="hidden">
@@ -2241,7 +2241,11 @@
 
         function showConsentGate(timing) {
             hideContinueBtn();
-            revealSection(document.getElementById('newParticipantBanner'), 0);
+            const banner = document.getElementById('newParticipantBanner');
+            banner.textContent = isAnonymousMode
+                ? '\u2736 Welcome \u2014 please read and accept consent below to begin'
+                : '\u2736 First visit \u2014 fill in your info above, then review & accept consent below';
+            revealSection(banner, 0);
             if (timing === 'pre' && !isAnonymousMode) {
                 revealSection(document.getElementById('demographicsRow'), 150);
                 revealSection(document.getElementById('consentGate'), 350);
@@ -3607,8 +3611,6 @@
             document.getElementById('nameRow').classList.add('hidden');
             document.getElementById('nameContinueBtn').classList.add('hidden');
             document.getElementById('demographicsRow').classList.add('hidden');
-            document.getElementById('setupSection').classList.add('hidden');
-            document.getElementById('newParticipantBanner').classList.add('hidden');
             participantId = anonId;
             participantStatus = 'new';
             showConsentGate(timing);
