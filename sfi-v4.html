@@ -1492,9 +1492,9 @@
             <p>~60 seconds &bull; All responses confidential</p>
         </div>
         
-        <!-- Setup -->
+        <!-- Setup: name entry + demographics. Hidden entirely in anonymous mode. -->
         <div class="setup-section" id="setupSection">
-        <div class="field-row" id="nameRow">
+            <div class="field-row" id="nameRow">
                 <div class="field">
                     <label>First Name</label>
                     <input type="text" id="firstName" placeholder="First" autocomplete="given-name" spellcheck="false">
@@ -1522,7 +1522,10 @@
                     </select>
                 </div>
             </div>
-            <div id="protocolTimingSection" class="hidden">
+        </div>
+
+        <!-- Protocol + Timing: revealed after identity/consent resolved, for all modes -->
+        <div id="protocolTimingSection" class="hidden">
             <div class="field-row">
                 <div class="field">
                     <label>Protocol</label>
@@ -1541,7 +1544,6 @@
                 <span class="timing-escape" id="timingEscape">Already did pre-session? <a onclick="skipToPost()">Start on post-session</a></span>
                 <span class="timing-lock-note hidden" id="timingLockNote">Timing locked for this session</span>
             </div>
-            </div><!-- /protocolTimingSection -->
         </div>
         
         <!-- Welcome back banner (returning participants) -->
@@ -2502,12 +2504,16 @@
             const protocol = document.getElementById('protocol').value.trim();
             const comment = document.getElementById('comment').value.trim();
             
-            // Collect demographics Ã¢â‚¬â€ use stored values for returning participants, form for new
-            const ageToSubmit = participantAge !== null ? participantAge
+            // Collect demographics — anonymous mode hardcodes sex:'female' (facilitator-screened)
+            // and skips age (captured via lafdAgeBracket in addon). Named deployments use
+            // stored values for returning participants, form values for new.
+            const ageToSubmit = isAnonymousMode ? null
+                : participantAge !== null ? participantAge
                 : parseInt(document.getElementById('participantAge').value) || null;
-            const sexToSubmit = participantSex !== null ? participantSex
+            const sexToSubmit = isAnonymousMode ? 'female'
+                : participantSex !== null ? participantSex
                 : document.getElementById('participantSex').value || null;
-            
+
             const staiScore = calculateSTAI6Score();
             
             const submitBtn = document.getElementById('submitBtn');
@@ -3484,7 +3490,7 @@
             hideSection(document.getElementById('demographicsRow'));
             
             // Show the form sections (name + protocol are intentionally preserved)
-            document.getElementById('setupSection').classList.remove('hidden');
+            if (!isAnonymousMode) document.getElementById('setupSection').classList.remove('hidden');
             document.getElementById('surveyBody').classList.remove('hidden');
             document.getElementById('successContainer').classList.add('hidden');
             document.querySelector('.submit-section').classList.remove('hidden');
@@ -3608,9 +3614,7 @@
         // ── Anonymous mode init ──────────────────────────────────────────────
         // Hide name fields entirely, set ANON ID, go straight to consent gate.
         if (isAnonymousMode) {
-            document.getElementById('nameRow').classList.add('hidden');
-            document.getElementById('nameContinueBtn').classList.add('hidden');
-            document.getElementById('demographicsRow').classList.add('hidden');
+            document.getElementById('setupSection').classList.add('hidden');
             participantId = anonId;
             participantStatus = 'new';
             showConsentGate(timing);
