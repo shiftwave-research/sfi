@@ -1990,16 +1990,14 @@
         if (isAnonymousMode) {
             const storageKey = 'sfi_anon_id_' + deploymentId;
             const urlSession = urlParams.get('session');
-            const stored = localStorage.getItem(storageKey);
             if (urlSession && urlSession.startsWith('ANON-')) {
-                // URL param is highest priority — survives incognito, tab restore, localStorage clear
+                // URL has session param — restore this ID and sync localStorage
                 anonId = urlSession;
-                localStorage.setItem(storageKey, anonId); // sync localStorage to match
-            } else if (stored) {
-                // localStorage fallback — survives reloads in normal browsing
-                anonId = stored;
+                localStorage.setItem(storageKey, anonId);
             } else {
-                // Generate fresh ID for new participant
+                // No session param (e.g. fresh QR scan) — always generate fresh
+                // localStorage is intentionally ignored here so QR scans always start clean
+                localStorage.removeItem(storageKey);
                 const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
                 anonId = 'ANON-' + Array.from({length: 6}, () =>
                     chars[Math.floor(Math.random() * chars.length)]).join('');
