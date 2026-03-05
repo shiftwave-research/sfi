@@ -1428,6 +1428,36 @@
             font-weight: 500;
         }
 
+        .optional-context-banner {
+            background: #2a0f1e;
+            border: 1px solid #7a2a50;
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            color: #f9a8d4;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .survey-start-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0 20px;
+            color: #4ade80;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .survey-start-divider::before,
+        .survey-start-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #2a6b3a;
+        }
+
         /* ========== PROGRESSIVE DISCLOSURE ANIMATIONS ========== */
         @keyframes revealDown {
             from { opacity: 0; transform: translateY(-10px); }
@@ -1481,9 +1511,9 @@
             <p>~60 seconds &bull; All responses confidential</p>
         </div>
         
-        <!-- Setup -->
+        <!-- Setup: name entry. Hidden entirely in anonymous mode. -->
         <div class="setup-section" id="setupSection">
-            <div class="field-row">
+            <div class="field-row" id="nameRow">
                 <div class="field">
                     <label>First Name</label>
                     <input type="text" id="firstName" placeholder="First" autocomplete="given-name" spellcheck="false">
@@ -1494,8 +1524,12 @@
                 </div>
             </div>
             <button type="button" id="nameContinueBtn" disabled onclick="triggerLookupIfReady()">Continue →</button>
-            <!-- Age + Sex: revealed for new participants only, hidden for returning, pre-session only -->
-            <div class="field-row hidden" id="demographicsRow">
+        </div>
+
+        <!-- Demographics: revealed for new participants only, pre-session only.
+             Separate card from name entry — same flow step, distinct data type. -->
+        <div class="setup-section hidden" id="demographicsRow">
+            <div class="field-row">
                 <div class="field">
                     <label>Age</label>
                     <input type="number" id="participantAge" placeholder="e.g., 34" min="10" max="100" autocomplete="off">
@@ -1511,7 +1545,14 @@
                     </select>
                 </div>
             </div>
-            <div id="protocolTimingSection" class="hidden">
+        </div>
+
+        <!-- Welcome back banner: sits between name entry and session details -->
+        <div id="welcomeBanner" class="hidden"></div>
+
+        <!-- Protocol + Timing: revealed after identity/consent resolved, for all modes -->
+        <div id="protocolTimingSection" class="hidden">
+            <div class="survey-start-divider">Session Details</div>
             <div class="field-row">
                 <div class="field">
                     <label>Protocol</label>
@@ -1530,14 +1571,11 @@
                 <span class="timing-escape" id="timingEscape">Already did pre-session? <a onclick="skipToPost()">Start on post-session</a></span>
                 <span class="timing-lock-note hidden" id="timingLockNote">Timing locked for this session</span>
             </div>
-            </div><!-- /protocolTimingSection -->
         </div>
         
-        <!-- Welcome back banner (returning participants) -->
-        <div id="welcomeBanner" class="hidden"></div>
 
         <!-- New participant banner -->
-        <div id="newParticipantBanner" class="hidden">✦ First visit — fill in your info above, then review & accept consent below</div>
+        <div id="newParticipantBanner" class="hidden">✦ Welcome — please read and accept consent below to begin</div>
 
         <!-- Consent Gate (new participants) -->
         <div id="consentGate" class="hidden">
@@ -1917,7 +1955,9 @@
                 },
                 'LAFD_Mar2026': {
                     displayName: "LAFD Women's Wellness Workshop",
-                    addons: ['lafdPre', 'lafdPost']
+                    addons: ['lafdPre', 'lafdPost'],
+                    anonymousMode: true,
+                    defaultProtocol: 'Hormone Resilience'
                 }
             }
         };
@@ -1928,6 +1968,17 @@
         const isFieldMode = deploymentId !== '';
         const activePreset = isFieldMode ? (CONFIG.DEPLOYMENT_PRESETS[deploymentId] || {}) : {};
         const activeAddons = isFieldMode ? (activePreset.addons || []) : [];
+
+        // ── Anonymous mode ──────────────────────────────────────────────────────
+        // Deployments with anonymousMode:true bypass name entry and key table.
+        // A random ANON-XXXXXX ID is generated per page load as participantId.
+        const isAnonymousMode = !!(activePreset.anonymousMode);
+        let anonId = null;
+        if (isAnonymousMode) {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            anonId = 'ANON-' + Array.from({length: 6}, () =>
+                chars[Math.floor(Math.random() * chars.length)]).join('');
+        }
 
         // Show org name in header if field mode
         if (isFieldMode && activePreset.displayName) {
@@ -2196,12 +2247,23 @@
 
         function showWelcomeBack() {
             hideContinueBtn();
-            // Returning participants: hide usage count question, auto-show conditional block
-            // (we already know they're non-first-timers from the key table)
-            const usageBlock = document.getElementById('caaUsageCountBlock');
-            if (usageBlock) usageBlock.classList.add('hidden');
-            const caaC = document.getElementById('caaConditional');
-            if (caaC) caaC.classList.remove('hidden');
+            // Returning participants: hide any question with skipIfReturning:true,
+            // and auto-show their associated conditionalTarget blocks.
+            // This replaces hardcoded caaUsageCountBlock/caaConditional references.
+            activeAddons.forEach(addonKey => {
+                const addon = ADDON_REGISTRY[addonKey];
+                if (!addon || !addon.questions) return;
+                addon.questions.forEach(q => {
+                    if (q.skipIfReturning && q.blockId) {
+                        const block = document.getElementById(q.blockId);
+                        if (block) block.classList.add('hidden');
+                    }
+                    if (q.skipIfReturning && q.conditionalTarget) {
+                        const target = document.getElementById(q.conditionalTarget);
+                        if (target) target.classList.remove('hidden');
+                    }
+                });
+            });
             // Names stay editable until submission — wrong match can be corrected
             // Do NOT lock timing here — returning users on a fresh load should be
             // able to choose pre or post (e.g., catching up a missed post-session).
@@ -2218,8 +2280,12 @@
 
         function showConsentGate(timing) {
             hideContinueBtn();
-            revealSection(document.getElementById('newParticipantBanner'), 0);
-            if (timing === 'pre') {
+            const banner = document.getElementById('newParticipantBanner');
+            banner.textContent = isAnonymousMode
+                ? '\u2736 Welcome \u2014 please read and accept consent below to begin'
+                : '\u2736 First visit \u2014 fill in your info above, then review & accept consent below';
+            revealSection(banner, 0);
+            if (timing === 'pre' && !isAnonymousMode) {
                 revealSection(document.getElementById('demographicsRow'), 150);
                 revealSection(document.getElementById('consentGate'), 350);
             } else {
@@ -2275,11 +2341,13 @@
         
         // ========== NAME LOCK ==========
         function lockNames() {
+            if (isAnonymousMode) return;
             document.getElementById('firstName').classList.add('field-locked');
             document.getElementById('lastName').classList.add('field-locked');
         }
 
         function unlockNames() {
+            if (isAnonymousMode) return;
             document.getElementById('firstName').classList.remove('field-locked');
             document.getElementById('lastName').classList.remove('field-locked');
         }
@@ -2324,12 +2392,14 @@
             const firstName = document.getElementById('firstName').value.trim();
             const lastName = document.getElementById('lastName').value.trim();
             const protocol = document.getElementById('protocol').value.trim();
-            if (!firstName) missing.push({ type: 'setup', id: 'firstName', label: 'First Name' });
-            if (!lastName) missing.push({ type: 'setup', id: 'lastName', label: 'Last Name' });
+            if (!isAnonymousMode) {
+                if (!firstName) missing.push({ type: 'setup', id: 'firstName', label: 'First Name' });
+                if (!lastName) missing.push({ type: 'setup', id: 'lastName', label: 'Last Name' });
+            }
             if (!protocol) missing.push({ type: 'setup', id: 'protocol', label: 'Protocol' });
 
-            // Age and sex Ã¢â‚¬â€ only required for new participants (returning have them in key table)
-            if (participantStatus !== 'returning') {
+            // Age and sex -- skipped for anonymous mode (addon handles demographics)
+            if (!isAnonymousMode && participantStatus !== 'returning') {
                 const ageVal = document.getElementById('participantAge').value.trim();
                 const sexVal = document.getElementById('participantSex').value;
                 if (!ageVal) missing.push({ type: 'setup', id: 'participantAge', label: 'Age' });
@@ -2469,16 +2539,20 @@
                 return;
             }
             
-            const participantName = getFullName();
+            const participantName = isAnonymousMode ? anonId : getFullName();
             const protocol = document.getElementById('protocol').value.trim();
             const comment = document.getElementById('comment').value.trim();
             
-            // Collect demographics Ã¢â‚¬â€ use stored values for returning participants, form for new
-            const ageToSubmit = participantAge !== null ? participantAge
+            // Collect demographics — anonymous mode hardcodes sex:'female' (facilitator-screened)
+            // and skips age (captured via lafdAgeBracket in addon). Named deployments use
+            // stored values for returning participants, form values for new.
+            const ageToSubmit = isAnonymousMode ? null
+                : participantAge !== null ? participantAge
                 : parseInt(document.getElementById('participantAge').value) || null;
-            const sexToSubmit = participantSex !== null ? participantSex
+            const sexToSubmit = isAnonymousMode ? 'female'
+                : participantSex !== null ? participantSex
                 : document.getElementById('participantSex').value || null;
-            
+
             const staiScore = calculateSTAI6Score();
             
             const submitBtn = document.getElementById('submitBtn');
@@ -2552,11 +2626,17 @@
                     participantId = result.participantId;
                 }
 
+                // Persist hormonal stage for post-session Q3 conditional
+                if (timing === 'pre' && addonValues['lafdHormonalStage']) {
+                    sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
+                }
+
                 // Lock names on submission — identity committed, consistent with timing lock logic
                 lockNames();
 
                 // Hide the form, show the success screen
                 document.getElementById('setupSection').classList.add('hidden');
+                document.getElementById('protocolTimingSection').classList.add('hidden');
                 document.getElementById('consentGate').classList.add('hidden');
                 document.getElementById('surveyBody').classList.add('hidden');
                 document.querySelector('.submit-section').classList.add('hidden');
@@ -2582,6 +2662,7 @@
                 if (error.name === 'AbortError') {
                     // Request already sent and likely saved — show success to avoid duplicate submissions
                     document.getElementById('setupSection').classList.add('hidden');
+                    document.getElementById('protocolTimingSection').classList.add('hidden');
                     document.getElementById('consentGate').classList.add('hidden');
                     document.getElementById('surveyBody').classList.add('hidden');
                     document.querySelector('.submit-section').classList.add('hidden');
@@ -2609,19 +2690,28 @@
         }
         
         // ========== ADDON RENDERER ==========
-        // Renders question definitions to HTML. Addon entries use either legacy `html`
-        // (string, passes through unchanged) or new `questions` (array, rendered here).
+        // Renders question definitions to HTML. All active addons use the structured
+        // `questions` array format. The `html` string property is retained as an explicit
+        // escape hatch for one-off raw HTML injection — it is not used by any current addon
+        // and should not be used for new ones. Remove if still unused at next major audit.
         // Supported types: sectionHeader, sectionDescription, vas, singleSelect,
         //                  multiSelect, likert5, nps, conditional
 
-        // Wraps a rendered question in a showIf container if the question has a showIf property.
-        // data-showif-value is JSON so it can hold either a string or an array.
+        // Wraps a rendered question in a showIf or showIfAnswered container.
         function wrapShowIf(q, html) {
-            if (!q.showIf) return html;
-            var val = JSON.stringify(q.showIf.value);
-            return '<div class="addon-showif hidden" data-showif-field="' + q.showIf.field + '" data-showif-value=\'' + val + '\'>'
-                 + html
-                 + '</div>';
+            if (q.showIf) {
+                var val = JSON.stringify(q.showIf.value);
+                return '<div class="addon-showif hidden" data-showif-field="' + q.showIf.field + '" data-showif-value=\'' + val + '\'>'
+                     + html
+                     + '</div>';
+            }
+            if (q.showIfAnswered) {
+                var excl = JSON.stringify(q.showIfAnswered.exclude || []);
+                return '<div class="addon-showif-answered hidden" data-showanswered-field="' + q.showIfAnswered.field + '" data-showanswered-exclude=\'' + excl + '\'>'
+                     + html
+                     + '</div>';
+            }
+            return html;
         }
 
         function renderQuestion(q) {
@@ -2646,7 +2736,7 @@
                          + '\n                </div>';
 
                 case 'singleSelect':
-                    return '\n                <div class="addon-question-block">'
+                    return '\n                <div class="addon-question-block"' + (q.blockId ? ' id="' + q.blockId + '"' : '') + '>'
                          + '\n                    <div class="addon-question">' + q.question + '</div>'
                          + '\n                    <div class="addon-ss-group" data-field="' + q.field + '"'
                          + (q.conditionalTarget ? ' data-conditional-target="' + q.conditionalTarget + '"' : '')
@@ -2661,6 +2751,7 @@
                          + (q.hint ? ' <span style="font-size:0.75em;color:#888;font-weight:400;">' + q.hint + '</span>' : '')
                          + '</div>'
                          + '\n                    <div class="addon-ss-group" data-field="' + q.field + '" data-multiselect="true"'
+                         + (q.exclusiveValues ? ' data-exclusive-values=\'' + JSON.stringify(q.exclusiveValues) + '\'' : '')
                          + (q.exclusiveValue ? ' data-exclusive="' + q.exclusiveValue + '"' : '')
                          + '>\n                        '
                          + q.options.map(function(o){ return '<button class="addon-ss-btn" data-value="' + o.value + '">' + o.label + '</button>'; }).join('\n                        ')
@@ -2698,7 +2789,7 @@
         }
 
         function renderAddonHTML(addonKey, addon) {
-            if (addon.html) return addon.html; // backward-compat: legacy string entries pass through unchanged
+            if (addon.html) return addon.html; // escape hatch: raw HTML string, not used by any current addon
             // timing:'both' addons (e.g. atomic VAS sliders) render without a wrapper —
             // they sit inline with the SSS VAS items and are always visible.
             if (addon.timing === 'both') {
@@ -2718,6 +2809,7 @@
             if (optionalQs.length) {
                 inner += '\n<div class="optional-block">'
                        + '\n    <div class="optional-block-label">Optional</div>'
+                       + '\n    <div class="optional-context-banner">At Shiftwave, we\'re committed to better understanding female physiology and how nervous system regulation may support women\'s health. These optional questions help us better serve women across all stages of life. Your responses are completely confidential and used only in aggregate for research purposes.</div>'
                        + '\n    ' + optionalQs.map(renderQuestion).join('\n    ')
                        + '\n</div>';
             }
@@ -2777,6 +2869,8 @@
                 questions: [
                     { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
                     { type: 'singleSelect', field: 'caaUsageCount',
+                      blockId: 'caaUsageCountBlock',
+                      skipIfReturning: true,
                       question: 'How many times have you used the Shiftwave chair before today?',
                       conditionalTarget: 'caaConditional',
                       options: [
@@ -2787,7 +2881,7 @@
                         { value: '10plus',     label: 'More than 10 times' },
                     ]},
                     { type: 'singleSelect', field: 'caaPromptedBy',
-                      question: 'What brought you to Shiftwave today?',
+                      question: 'What\'s your main reason for using Shiftwave today?',
                       options: [
                         { value: 'stress_anxiety', label: 'Stress or anxiety' },
                         { value: 'relax',          label: 'To relax / unwind' },
@@ -2999,7 +3093,7 @@
             lafdPre: {
                 insertAfter: 'surveyBodyStart',
                 timing: 'pre',
-                required: { pre: ['lafdRole', 'lafdShiftTiming'] },
+                required: { pre: ['lafdRole', 'lafdShiftTiming', 'lafdAgeBracket'] },
                 questions: [
                     { type: 'sectionHeader', label: 'About You' },
                     { type: 'singleSelect', field: 'lafdRole',
@@ -3024,23 +3118,32 @@
                         { value: '3_plus_days',     label: '3 or more days' },
                         { value: 'standard_hours',  label: 'I work standard business hours' },
                     ]},
+                    { type: 'singleSelect', field: 'lafdAgeBracket',
+                      question: 'What is your age?',
+                      options: [
+                        { value: 'under_30', label: 'Under 30' },
+                        { value: '30_39',    label: '30\u201339' },
+                        { value: '40_49',    label: '40\u201349' },
+                        { value: '50_59',    label: '50\u201359' },
+                        { value: '60_plus',  label: '60 or older' },
+                    ]},
                     // optionalBlock:true marks the split point — everything after renders
-                    // inside .optional-block. This object itself is not rendered as a question.
+                    // inside .optional-block with context paragraph above.
                     { optionalBlock: true },
                     { type: 'singleSelect', field: 'lafdHormonalStage',
                       required: false,
                       question: 'Which best describes your current hormonal life stage?',
                       options: [
-                        { value: 'regular_cycles',   label: 'Regular menstrual cycles' },
-                        { value: 'irregular_cycles', label: 'Irregular or changing cycles' },
-                        { value: 'no_periods',       label: 'No longer have periods' },
-                        { value: 'pregnant_pp',      label: 'Pregnant or postpartum' },
-                        { value: 'prefer_not',       label: 'Prefer not to say' },
+                        { value: 'regular_cycles',  label: 'Regular menstrual cycles' },
+                        { value: 'perimenopause',   label: 'Perimenopause (irregular or changing cycles)' },
+                        { value: 'post_menopause',  label: 'Post-menopause (no longer have periods)' },
+                        { value: 'pregnant_pp',     label: 'Pregnant or postpartum' },
+                        { value: 'prefer_not',      label: 'Prefer not to say' },
                     ]},
                     { type: 'singleSelect', field: 'lafdCyclePhase',
                       required: false,
                       question: 'Roughly where are you in your cycle right now?',
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'irregular_cycles'] },
+                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'perimenopause'] },
                       options: [
                         { value: 'menstrual',   label: 'Menstrual (period)' },
                         { value: 'follicular',  label: 'Follicular (post-period, pre-ovulation)' },
@@ -3048,10 +3151,23 @@
                         { value: 'luteal',      label: 'Luteal (pre-period)' },
                         { value: 'not_sure',    label: 'Not sure' },
                     ]},
-                    { type: 'singleSelect', field: 'lafdSymptomSeverity',
+                    // P5a — menstrual symptoms (regular cycles and perimenopause)
+                    { type: 'singleSelect', field: 'lafdMenstrualSymptoms',
                       required: false,
-                      question: "Rate the severity of any menstrual symptoms you're experiencing right now.",
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'irregular_cycles'] },
+                      question: 'Rate the severity of any menstrual symptoms you\'re experiencing right now.',
+                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'perimenopause'] },
+                      options: [
+                        { value: 'none',     label: 'None' },
+                        { value: 'mild',     label: 'Mild' },
+                        { value: 'moderate', label: 'Moderate' },
+                        { value: 'severe',   label: 'Severe' },
+                    ]},
+                    // P5b — perimenopausal/menopausal symptoms (perimenopause and post-menopause)
+                    // Perimenopausal women intentionally see both P5a and P5b.
+                    { type: 'singleSelect', field: 'lafdMenopauseSymptoms',
+                      required: false,
+                      question: 'Rate the severity of any perimenopausal or menopausal symptoms you\'re experiencing right now.',
+                      showIf: { field: 'lafdHormonalStage', value: ['perimenopause', 'post_menopause'] },
                       options: [
                         { value: 'none',     label: 'None' },
                         { value: 'mild',     label: 'Mild' },
@@ -3070,6 +3186,7 @@
                     { type: 'multiSelect', field: 'lafdUsageContext',
                       question: 'Where could you see yourself using Shiftwave?',
                       hint: 'Select all that apply',
+                      exclusiveValues: ['not_work', 'not_sure'],
                       options: [
                         { value: 'after_shift',   label: 'After a shift, for decompression and recovery' },
                         { value: 'before_shift',  label: 'Before a shift, to get mentally ready' },
@@ -3077,6 +3194,17 @@
                         { value: 'home_wellness', label: 'At home, for personal wellness' },
                         { value: 'not_work',      label: "I wouldn't use it in a work context" },
                         { value: 'not_sure',      label: "I'm not sure yet" },
+                    ]},
+                    // Q3: shown only if P3 (lafdHormonalStage) was answered and not 'prefer_not'
+                    { type: 'singleSelect', field: 'lafdHormonalAttribution',
+                      required: false,
+                      question: 'Did today\'s session help ease any symptoms related to your hormonal health?',
+                      showIfAnswered: { field: 'lafdHormonalStage', exclude: ['prefer_not'] },
+                      options: [
+                        { value: 'yes_noticeably', label: 'Yes, noticeably' },
+                        { value: 'somewhat',       label: 'Somewhat' },
+                        { value: 'not_really',     label: 'Not that I could tell' },
+                        { value: 'no_symptoms',    label: 'I wasn\'t experiencing symptoms today' },
                     ]},
                 ],
             },
@@ -3207,10 +3335,18 @@
                     }
                 }
             });
-            // Returning participants skip the usage count question — not required for them
+            // Returning participants skip any question flagged skipIfReturning
             if (participantStatus === 'returning') {
-                const idx = required.indexOf('caaUsageCount');
-                if (idx > -1) required.splice(idx, 1);
+                activeAddons.forEach(addonKey => {
+                    const addon = ADDON_REGISTRY[addonKey];
+                    if (!addon || !addon.questions) return;
+                    addon.questions.forEach(q => {
+                        if (q.skipIfReturning && q.field) {
+                            const idx = required.indexOf(q.field);
+                            if (idx > -1) required.splice(idx, 1);
+                        }
+                    });
+                });
             }
             return required;
         }
@@ -3229,6 +3365,15 @@
                 var match = Array.isArray(trigger) ? trigger.indexOf(current) !== -1 : current === trigger;
                 el.classList.toggle('hidden', !match);
             });
+            // showIfAnswered: show when field is answered and value not in exclude list
+            document.querySelectorAll('.addon-showif-answered').forEach(function(el) {
+                var field = el.dataset.showansweredField;
+                var exclude = JSON.parse(el.dataset.showansweredExclude || '[]');
+                var current = addonValues[field];
+                var answered = current !== undefined && current !== null && current !== '';
+                var excluded = exclude.indexOf(current) !== -1;
+                el.classList.toggle('hidden', !answered || excluded);
+            });
         }
 
         // ========== ADDON EVENT DELEGATION ==========
@@ -3240,19 +3385,24 @@
                 if (group) {
                     const isMulti = group.dataset.multiselect === 'true';
                     const exclusiveVal = group.dataset.exclusive || null;
+                    // exclusiveValues: JSON array of values that each act as exclusive (clear all others when selected,
+                    // and get cleared when any non-exclusive option is selected)
+                    const exclusiveVals = group.dataset.exclusiveValues
+                        ? JSON.parse(group.dataset.exclusiveValues)
+                        : (exclusiveVal ? [exclusiveVal] : []);
                     const clickedVal = ssBtn.dataset.value;
 
                     if (isMulti) {
-                        if (exclusiveVal && clickedVal === exclusiveVal) {
+                        if (exclusiveVals.includes(clickedVal)) {
                             // Exclusive option selected — clear all others, select only this
                             group.querySelectorAll('.addon-ss-btn').forEach(b => b.classList.remove('selected'));
                             ssBtn.classList.add('selected');
                         } else {
-                            // Regular multi-select toggle — deselect exclusive if active
-                            if (exclusiveVal) {
-                                group.querySelectorAll(`.addon-ss-btn[data-value="${exclusiveVal}"]`)
+                            // Regular multi-select toggle — deselect any active exclusive options
+                            exclusiveVals.forEach(ev => {
+                                group.querySelectorAll(`.addon-ss-btn[data-value="${ev}"]`)
                                     .forEach(b => b.classList.remove('selected'));
-                            }
+                            });
                             ssBtn.classList.toggle('selected');
                         }
                         // Collect all selected values as pipe-separated string
@@ -3333,13 +3483,31 @@
 
             // Clear addon selections
             addonValues = {};
+            // For LAFD post: re-seed lafdHormonalStage from sessionStorage so Q3 showIfAnswered works
+            const storedHormonalStage = sessionStorage.getItem('sfi_hormonal_stage_' + deploymentId);
+            if (storedHormonalStage) {
+                addonValues['lafdHormonalStage'] = storedHormonalStage;
+                updateShowIf();
+            }
             document.querySelectorAll('.addon-ss-btn.selected, .addon-nps-btn.selected, .addon-l5-btn.selected')
                 .forEach(b => b.classList.remove('selected'));
-            // Reset conditionals
-            const caaC = document.getElementById('caaConditional');
-            if (caaC) caaC.classList.add('hidden');
-            const mclC = document.getElementById('mclConditional');
-            if (mclC) mclC.classList.add('hidden');
+            // Reset conditionals — re-hide any conditionalTarget blocks and
+            // restore skipIfReturning blocks (they'll be re-evaluated by showWelcomeBack
+            // or showConsentGate depending on participant status).
+            activeAddons.forEach(addonKey => {
+                const addon = ADDON_REGISTRY[addonKey];
+                if (!addon || !addon.questions) return;
+                addon.questions.forEach(q => {
+                    if (q.conditionalTarget) {
+                        const target = document.getElementById(q.conditionalTarget);
+                        if (target) target.classList.add('hidden');
+                    }
+                    if (q.skipIfReturning && q.blockId) {
+                        const block = document.getElementById(q.blockId);
+                        if (block) block.classList.remove('hidden');
+                    }
+                });
+            });
 
             formData = {
                 valence: null, arousal: null,
@@ -3394,7 +3562,8 @@
             hideSection(document.getElementById('demographicsRow'));
             
             // Show the form sections (name + protocol are intentionally preserved)
-            document.getElementById('setupSection').classList.remove('hidden');
+            if (!isAnonymousMode) document.getElementById('setupSection').classList.remove('hidden');
+            revealSection(document.getElementById('protocolTimingSection'), 0);
             document.getElementById('surveyBody').classList.remove('hidden');
             document.getElementById('successContainer').classList.add('hidden');
             document.querySelector('.submit-section').classList.remove('hidden');
@@ -3489,11 +3658,22 @@
             consent = null;
             participantAge = null;
             participantSex = null;
-            // Restore first-session question visibility for fresh lookup
-            const usageBlock = document.getElementById('caaUsageCountBlock');
-            if (usageBlock) usageBlock.classList.remove('hidden');
-            const caaCond = document.getElementById('caaConditional');
-            if (caaCond) caaCond.classList.add('hidden');
+            // Restore first-session question visibility for fresh lookup —
+            // re-show skipIfReturning blocks and re-hide their conditionalTargets
+            activeAddons.forEach(addonKey => {
+                const addon = ADDON_REGISTRY[addonKey];
+                if (!addon || !addon.questions) return;
+                addon.questions.forEach(q => {
+                    if (q.skipIfReturning && q.blockId) {
+                        const block = document.getElementById(q.blockId);
+                        if (block) block.classList.remove('hidden');
+                    }
+                    if (q.skipIfReturning && q.conditionalTarget) {
+                        const target = document.getElementById(q.conditionalTarget);
+                        if (target) target.classList.add('hidden');
+                    }
+                });
+            });
         }
 
         function updateContinueBtn() {
@@ -3515,6 +3695,15 @@
         firstNameInput.addEventListener('blur', triggerLookupIfReady);
         lastNameInput.addEventListener('blur', triggerLookupIfReady);
 
+        // ── Anonymous mode init ──────────────────────────────────────────────
+        // Hide name fields entirely, set ANON ID, go straight to consent gate.
+        if (isAnonymousMode) {
+            document.getElementById('setupSection').classList.add('hidden');
+            participantId = anonId;
+            participantStatus = 'new';
+            showConsentGate(timing);
+        }
+
         // Sex listener for progress tracking
         document.getElementById('participantSex').addEventListener('change', updateProgress);
 
@@ -3526,7 +3715,7 @@
             'Das Optimizer','Das Optimizer Express','Day At The Beach','Deep Love',
             'Disco Nap','Disco Nap BioDrive','Disco Nap Express','Emerald Wolf','Evolver',
             'Extended Relief','For Kids (6-9)','For Kids (9-12)','Get In The Zone',
-            'Guided Alignment','HRV BioDrive Intro','Inner Performance 1',
+            'Guided Alignment','Hormone Resilience','HRV BioDrive Intro','Inner Performance 1',
             'Inner Performance 1: Mastering the Foundation',
             'Inner Performance 2: The Samurai Mind',
             'Inner Performance 3: The Power of Letting Go',
@@ -3553,10 +3742,17 @@
         const protocolList = document.getElementById('protocolList');
         let protocolHighlightIndex = -1;
 
+        // Pre-fill protocol if preset specifies a default
+        if (activePreset.defaultProtocol) {
+            protocolInput.value = activePreset.defaultProtocol;
+            updateProgress();
+        }
+
         function renderProtocolList(query) {
             const q = query.toLowerCase();
             const matches = q.length === 0 ? [] : PROTOCOLS.filter(p => p.toLowerCase().includes(q));
-            if (matches.length === 0) {
+            // Suppress dropdown when the typed value is already an exact match — no need to show options
+            if (matches.length === 0 || PROTOCOLS.some(p => p.toLowerCase() === q)) {
                 protocolList.classList.add('hidden');
                 return;
             }
