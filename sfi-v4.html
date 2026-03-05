@@ -2665,8 +2665,9 @@
                     const newParams = new URLSearchParams(window.location.search);
                     newParams.set('session', anonId);
                     window.history.replaceState(null, '', '?' + newParams.toString());
-                    // Also persist timing state so a reload restores to post rather than back to pre
+                    // Persist timing and protocol so a reload mid-session restores fully
                     sessionStorage.setItem('sfi_post_pending_' + deploymentId, '1');
+                    sessionStorage.setItem('sfi_protocol_' + deploymentId, document.getElementById('protocol').value.trim());
                 }
 
                 // Lock names on submission — identity committed, consistent with timing lock logic
@@ -2768,7 +2769,7 @@
                          + '\n                    <div class="vas-question">' + q.question + '</div>'
                          + '\n                    <div class="vas-slider-container">'
                          + '\n                        <div class="vas-labels"><span>' + q.labelLow + '</span><span>' + q.labelHigh + '</span></div>'
-                         + '\n                        <input type="range" class="vas-slider" id="addon_' + q.field + '" data-field="' + q.field + '" min="0" max="100" value="50">'
+                         + '\n                        <input type="range" class="vas-slider addon-engage-slider" id="addon_' + q.field + '" data-field="' + q.field + '" min="0" max="100" value="50">'
                          + '\n                        <div class="vas-value"><span id="addon_' + q.field + 'Value">&mdash;</span></div>'
                          + '\n                    </div>'
                          + '\n                </div>';
@@ -3558,8 +3559,9 @@
                         chars[Math.floor(Math.random() * chars.length)]).join('');
                     localStorage.setItem(storageKey, anonId);
                     participantId = anonId;
-                    // Clear post-pending flag — next person starts at pre
+                    // Clear post-pending flag and protocol — next person starts at pre
                     sessionStorage.removeItem('sfi_post_pending_' + deploymentId);
+                    sessionStorage.removeItem('sfi_protocol_' + deploymentId);
                     // Clear session param from URL — next person starts with a clean URL
                     const newParams = new URLSearchParams(window.location.search);
                     newParams.delete('session');
@@ -3812,7 +3814,7 @@
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                             },
-                            body: JSON.stringify({ action: 'checkSession', participantId: anonId, deploymentId })
+                            body: JSON.stringify({ action: 'checkSession', participantName: anonId, deploymentId })
                         });
                         const result = await res.json();
                         timings = result.timings || [];
@@ -3844,6 +3846,18 @@
                         // Pre saved, no post yet — restore to post-timing, bypass consent
                         consent = true;
                         document.getElementById('surveyBody').classList.remove('consent-blocked');
+                        // Restore protocol selection
+                        const storedProtocol = sessionStorage.getItem('sfi_protocol_' + deploymentId);
+                        if (storedProtocol) {
+                            document.getElementById('protocol').value = storedProtocol;
+                            updateProgress();
+                        }
+                        // Restore hormonal stage so Q3 conditional shows correctly on post
+                        const storedStage = sessionStorage.getItem('sfi_hormonal_stage_' + deploymentId);
+                        if (storedStage) {
+                            addonValues['lafdHormonalStage'] = storedStage;
+                            updateShowIf();
+                        }
                         setTiming('post');
                         revealSection(document.getElementById('protocolTimingSection'), 0);
                     } else {
