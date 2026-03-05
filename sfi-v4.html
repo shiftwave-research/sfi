@@ -2665,6 +2665,8 @@
                     const newParams = new URLSearchParams(window.location.search);
                     newParams.set('session', anonId);
                     window.history.replaceState(null, '', '?' + newParams.toString());
+                    // Also persist timing state so a reload restores to post rather than back to pre
+                    sessionStorage.setItem('sfi_post_pending_' + deploymentId, '1');
                 }
 
                 // Lock names on submission — identity committed, consistent with timing lock logic
@@ -3556,6 +3558,8 @@
                         chars[Math.floor(Math.random() * chars.length)]).join('');
                     localStorage.setItem(storageKey, anonId);
                     participantId = anonId;
+                    // Clear post-pending flag — next person starts at pre
+                    sessionStorage.removeItem('sfi_post_pending_' + deploymentId);
                     // Clear session param from URL — next person starts with a clean URL
                     const newParams = new URLSearchParams(window.location.search);
                     newParams.delete('session');
@@ -3787,11 +3791,69 @@
 
         // ── Anonymous mode init ──────────────────────────────────────────────
         // Hide name fields entirely, set ANON ID, go straight to consent gate.
+        // If session param is in URL, query backend to check what timings already
+        // exist — prevents a completed pair being overwritten if Dani reloads
+        // after post submits instead of tapping Start New Session.
         if (isAnonymousMode) {
             document.getElementById('setupSection').classList.add('hidden');
             participantId = anonId;
             participantStatus = 'new';
-            showConsentGate(timing);
+            const postPending = sessionStorage.getItem('sfi_post_pending_' + deploymentId);
+            const restoredFromSession = urlParams.get('session') && urlParams.get('session').startsWith('ANON-');
+
+            if (restoredFromSession) {
+                // Query backend to check what's already saved for this ANON ID
+                (async function() {
+                    let timings = [];
+                    try {
+                        const res = await fetch(SUPABASE_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                            },
+                            body: JSON.stringify({ action: 'checkSession', participantId: anonId, deploymentId })
+                        });
+                        const result = await res.json();
+                        timings = result.timings || [];
+                    } catch (err) {
+                        // Network failure — fall back to sessionStorage flag
+                        console.warn('checkSession failed, falling back to sessionStorage', err);
+                    }
+
+                    const hasPost = timings.includes('post');
+                    const hasPre  = timings.includes('pre');
+
+                    if (hasPost) {
+                        // Both pre and post already saved — this session is complete.
+                        // Clear all state so Dani doesn't accidentally overwrite it.
+                        sessionStorage.removeItem('sfi_post_pending_' + deploymentId);
+                        localStorage.removeItem('sfi_anon_id_' + deploymentId);
+                        const cleanParams = new URLSearchParams(window.location.search);
+                        cleanParams.delete('session');
+                        const cleanSearch = cleanParams.toString();
+                        window.history.replaceState(null, '', cleanSearch ? '?' + cleanSearch : window.location.pathname);
+                        // Generate a fresh ID for whoever comes next
+                        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                        anonId = 'ANON-' + Array.from({length: 6}, () =>
+                            chars[Math.floor(Math.random() * chars.length)]).join('');
+                        localStorage.setItem('sfi_anon_id_' + deploymentId, anonId);
+                        participantId = anonId;
+                        showConsentGate('pre');
+                    } else if (hasPre || postPending) {
+                        // Pre saved, no post yet — restore to post-timing, bypass consent
+                        consent = true;
+                        document.getElementById('surveyBody').classList.remove('consent-blocked');
+                        setTiming('post');
+                        revealSection(document.getElementById('protocolTimingSection'), 0);
+                    } else {
+                        // Nothing saved yet — start fresh at pre
+                        showConsentGate('pre');
+                    }
+                })();
+            } else {
+                showConsentGate(timing);
+            }
         }
 
         // Sex listener for progress tracking
