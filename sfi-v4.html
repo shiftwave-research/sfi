@@ -1162,6 +1162,17 @@
         }
         /* showIf questions: hidden until trigger field matches */
         .addon-showif.hidden { display: none; }
+        .addon-showif-answered.hidden { display: none; }
+        /* Give conditional wrappers the same top breathing room as sibling question blocks */
+        .addon-showif,
+        .addon-showif-answered {
+            margin-top: 24px;
+        }
+        /* Suppress double margin when conditional is the first child */
+        .addon-question-block:first-child .addon-showif,
+        .addon-question-block:first-child .addon-showif-answered {
+            margin-top: 0;
+        }
 
         /* Wrapper giving breathing room between questions */
         .addon-question-block {
@@ -1971,13 +1982,29 @@
 
         // ── Anonymous mode ──────────────────────────────────────────────────────
         // Deployments with anonymousMode:true bypass name entry and key table.
-        // A random ANON-XXXXXX ID is generated per page load as participantId.
+        // ANON ID is persisted in localStorage so reloads mid-session don't break pre→post pairing.
+        // Key is scoped to deploymentId so different deployments don't share IDs.
+        // Cleared on Start New Session (post→new) to give the next person a fresh ID.
         const isAnonymousMode = !!(activePreset.anonymousMode);
         let anonId = null;
         if (isAnonymousMode) {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            anonId = 'ANON-' + Array.from({length: 6}, () =>
-                chars[Math.floor(Math.random() * chars.length)]).join('');
+            const storageKey = 'sfi_anon_id_' + deploymentId;
+            const urlSession = urlParams.get('session');
+            const stored = localStorage.getItem(storageKey);
+            if (urlSession && urlSession.startsWith('ANON-')) {
+                // URL param is highest priority — survives incognito, tab restore, localStorage clear
+                anonId = urlSession;
+                localStorage.setItem(storageKey, anonId); // sync localStorage to match
+            } else if (stored) {
+                // localStorage fallback — survives reloads in normal browsing
+                anonId = stored;
+            } else {
+                // Generate fresh ID for new participant
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                anonId = 'ANON-' + Array.from({length: 6}, () =>
+                    chars[Math.floor(Math.random() * chars.length)]).join('');
+                localStorage.setItem(storageKey, anonId);
+            }
         }
 
         // Show org name in header if field mode
@@ -2629,6 +2656,14 @@
                 // Persist hormonal stage for post-session Q3 conditional
                 if (timing === 'pre' && addonValues['lafdHormonalStage']) {
                     sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
+                }
+
+                // Write ANON ID to URL after pre-session so a reload mid-session restores pairing
+                // even in incognito where localStorage is unavailable
+                if (isAnonymousMode && timing === 'pre') {
+                    const newParams = new URLSearchParams(window.location.search);
+                    newParams.set('session', anonId);
+                    window.history.replaceState(null, '', '?' + newParams.toString());
                 }
 
                 // Lock names on submission — identity committed, consistent with timing lock logic
@@ -3363,7 +3398,19 @@
                 var trigger = JSON.parse(el.dataset.showifValue);
                 var current = addonValues[field];
                 var match = Array.isArray(trigger) ? trigger.indexOf(current) !== -1 : current === trigger;
+                var wasHidden = el.classList.contains('hidden');
                 el.classList.toggle('hidden', !match);
+                // Newly hidden — clear values so stale answers don't linger in addonValues or on screen
+                if (!wasHidden && !match) {
+                    el.querySelectorAll('.addon-ss-btn.selected').forEach(function(btn) {
+                        btn.classList.remove('selected');
+                        var grp = btn.closest('.addon-ss-group');
+                        if (grp && grp.dataset.field) delete addonValues[grp.dataset.field];
+                    });
+                    el.querySelectorAll('.addon-ss-group').forEach(function(grp) {
+                        if (grp.dataset.field) delete addonValues[grp.dataset.field];
+                    });
+                }
             });
             // showIfAnswered: show when field is answered and value not in exclude list
             document.querySelectorAll('.addon-showif-answered').forEach(function(el) {
@@ -3374,6 +3421,8 @@
                 var excluded = exclude.indexOf(current) !== -1;
                 el.classList.toggle('hidden', !answered || excluded);
             });
+            // Visibility changed — recount required fields so progress bar and submit gate are accurate
+            updateProgress();
         }
 
         // ========== ADDON EVENT DELEGATION ==========
@@ -3450,6 +3499,31 @@
         });
 
         // Addon engage-sliders (return readiness etc.)
+        // mousedown/touchstart: engage immediately so clicking at default value (50) still shows a number
+        document.getElementById('surveyContainer').addEventListener('mousedown', function(e) {
+            if (e.target.classList.contains('addon-engage-slider')) {
+                const field = e.target.dataset.field;
+                if (field) {
+                    addonValues[field] = parseInt(e.target.value);
+                    const display = document.getElementById(e.target.id + 'Value');
+                    if (display) display.textContent = e.target.value;
+                    e.target.closest('.addon-item') && e.target.closest('.addon-item').classList.add('engaged');
+                    updateProgress();
+                }
+            }
+        });
+        document.getElementById('surveyContainer').addEventListener('touchstart', function(e) {
+            if (e.target.classList.contains('addon-engage-slider')) {
+                const field = e.target.dataset.field;
+                if (field) {
+                    addonValues[field] = parseInt(e.target.value);
+                    const display = document.getElementById(e.target.id + 'Value');
+                    if (display) display.textContent = e.target.value;
+                    e.target.closest('.addon-item') && e.target.closest('.addon-item').classList.add('engaged');
+                    updateProgress();
+                }
+            }
+        }, { passive: true });
         document.getElementById('surveyContainer').addEventListener('input', function(e) {
             if (e.target.classList.contains('addon-engage-slider')) {
                 const field = e.target.dataset.field;
@@ -3472,6 +3546,21 @@
             // sessionId persists across pre→post (same session) but regenerates on Start New Session (post→new)
             if (timing === 'post') {
                 sessionId = generateSessionId();
+                // Clear persisted ANON ID so next person gets a fresh one
+                if (isAnonymousMode) {
+                    const storageKey = 'sfi_anon_id_' + deploymentId;
+                    localStorage.removeItem(storageKey);
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                    anonId = 'ANON-' + Array.from({length: 6}, () =>
+                        chars[Math.floor(Math.random() * chars.length)]).join('');
+                    localStorage.setItem(storageKey, anonId);
+                    participantId = anonId;
+                    // Clear session param from URL — next person starts with a clean URL
+                    const newParams = new URLSearchParams(window.location.search);
+                    newParams.delete('session');
+                    const newSearch = newParams.toString();
+                    window.history.replaceState(null, '', newSearch ? '?' + newSearch : window.location.pathname);
+                }
             }
             // NOTE: sessionId, participantId, participantStatus, and consent are intentionally NOT cleared.
             // They must persist across preÃ¢â€ â€™post within the same session.
