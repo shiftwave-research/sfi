@@ -1162,6 +1162,17 @@
         }
         /* showIf questions: hidden until trigger field matches */
         .addon-showif.hidden { display: none; }
+        .addon-showif-answered.hidden { display: none; }
+        /* Give conditional wrappers the same top breathing room as sibling question blocks */
+        .addon-showif,
+        .addon-showif-answered {
+            margin-top: 24px;
+        }
+        /* Suppress double margin when conditional is the first child */
+        .addon-question-block:first-child .addon-showif,
+        .addon-question-block:first-child .addon-showif-answered {
+            margin-top: 0;
+        }
 
         /* Wrapper giving breathing room between questions */
         .addon-question-block {
@@ -1971,13 +1982,27 @@
 
         // ── Anonymous mode ──────────────────────────────────────────────────────
         // Deployments with anonymousMode:true bypass name entry and key table.
-        // A random ANON-XXXXXX ID is generated per page load as participantId.
+        // ANON ID is persisted in localStorage so reloads mid-session don't break pre→post pairing.
+        // Key is scoped to deploymentId so different deployments don't share IDs.
+        // Cleared on Start New Session (post→new) to give the next person a fresh ID.
         const isAnonymousMode = !!(activePreset.anonymousMode);
         let anonId = null;
         if (isAnonymousMode) {
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            anonId = 'ANON-' + Array.from({length: 6}, () =>
-                chars[Math.floor(Math.random() * chars.length)]).join('');
+            const storageKey = 'sfi_anon_id_' + deploymentId;
+            const urlSession = urlParams.get('session');
+            if (urlSession && urlSession.startsWith('ANON-')) {
+                // URL has session param — restore this ID and sync localStorage
+                anonId = urlSession;
+                localStorage.setItem(storageKey, anonId);
+            } else {
+                // No session param (e.g. fresh QR scan) — always generate fresh
+                // localStorage is intentionally ignored here so QR scans always start clean
+                localStorage.removeItem(storageKey);
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                anonId = 'ANON-' + Array.from({length: 6}, () =>
+                    chars[Math.floor(Math.random() * chars.length)]).join('');
+                localStorage.setItem(storageKey, anonId);
+            }
         }
 
         // Show org name in header if field mode
@@ -2174,7 +2199,10 @@
             function engageSlider() {
                 if (!formData[id + 'Engaged']) {
                     formData[id + 'Engaged'] = true;
+                    formData[id] = parseInt(slider.value);
                     vasItem.classList.add('engaged');
+                    valueDisplay.textContent = slider.value;
+                    updateProgress();
                 }
             }
             
@@ -2631,6 +2659,17 @@
                     sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
                 }
 
+                // Write ANON ID to URL after pre-session so a reload mid-session restores pairing
+                // even in incognito where localStorage is unavailable
+                if (isAnonymousMode && timing === 'pre') {
+                    const newParams = new URLSearchParams(window.location.search);
+                    newParams.set('session', anonId);
+                    window.history.replaceState(null, '', '?' + newParams.toString());
+                    // Persist timing and protocol so a reload mid-session restores fully
+                    sessionStorage.setItem('sfi_post_pending_' + deploymentId, '1');
+                    sessionStorage.setItem('sfi_protocol_' + deploymentId, document.getElementById('protocol').value.trim());
+                }
+
                 // Lock names on submission — identity committed, consistent with timing lock logic
                 lockNames();
 
@@ -2730,7 +2769,7 @@
                          + '\n                    <div class="vas-question">' + q.question + '</div>'
                          + '\n                    <div class="vas-slider-container">'
                          + '\n                        <div class="vas-labels"><span>' + q.labelLow + '</span><span>' + q.labelHigh + '</span></div>'
-                         + '\n                        <input type="range" class="vas-slider" id="addon_' + q.field + '" data-field="' + q.field + '" min="0" max="100" value="50">'
+                         + '\n                        <input type="range" class="vas-slider addon-engage-slider" id="addon_' + q.field + '" data-field="' + q.field + '" min="0" max="100" value="50">'
                          + '\n                        <div class="vas-value"><span id="addon_' + q.field + 'Value">&mdash;</span></div>'
                          + '\n                    </div>'
                          + '\n                </div>';
@@ -3363,7 +3402,19 @@
                 var trigger = JSON.parse(el.dataset.showifValue);
                 var current = addonValues[field];
                 var match = Array.isArray(trigger) ? trigger.indexOf(current) !== -1 : current === trigger;
+                var wasHidden = el.classList.contains('hidden');
                 el.classList.toggle('hidden', !match);
+                // Newly hidden — clear values so stale answers don't linger in addonValues or on screen
+                if (!wasHidden && !match) {
+                    el.querySelectorAll('.addon-ss-btn.selected').forEach(function(btn) {
+                        btn.classList.remove('selected');
+                        var grp = btn.closest('.addon-ss-group');
+                        if (grp && grp.dataset.field) delete addonValues[grp.dataset.field];
+                    });
+                    el.querySelectorAll('.addon-ss-group').forEach(function(grp) {
+                        if (grp.dataset.field) delete addonValues[grp.dataset.field];
+                    });
+                }
             });
             // showIfAnswered: show when field is answered and value not in exclude list
             document.querySelectorAll('.addon-showif-answered').forEach(function(el) {
@@ -3374,6 +3425,8 @@
                 var excluded = exclude.indexOf(current) !== -1;
                 el.classList.toggle('hidden', !answered || excluded);
             });
+            // Visibility changed — recount required fields so progress bar and submit gate are accurate
+            updateProgress();
         }
 
         // ========== ADDON EVENT DELEGATION ==========
@@ -3450,6 +3503,31 @@
         });
 
         // Addon engage-sliders (return readiness etc.)
+        // mousedown/touchstart: engage immediately so clicking at default value (50) still shows a number
+        document.getElementById('surveyContainer').addEventListener('mousedown', function(e) {
+            if (e.target.classList.contains('addon-engage-slider')) {
+                const field = e.target.dataset.field;
+                if (field) {
+                    addonValues[field] = parseInt(e.target.value);
+                    const display = document.getElementById(e.target.id + 'Value');
+                    if (display) display.textContent = e.target.value;
+                    e.target.closest('.addon-item') && e.target.closest('.addon-item').classList.add('engaged');
+                    updateProgress();
+                }
+            }
+        });
+        document.getElementById('surveyContainer').addEventListener('touchstart', function(e) {
+            if (e.target.classList.contains('addon-engage-slider')) {
+                const field = e.target.dataset.field;
+                if (field) {
+                    addonValues[field] = parseInt(e.target.value);
+                    const display = document.getElementById(e.target.id + 'Value');
+                    if (display) display.textContent = e.target.value;
+                    e.target.closest('.addon-item') && e.target.closest('.addon-item').classList.add('engaged');
+                    updateProgress();
+                }
+            }
+        }, { passive: true });
         document.getElementById('surveyContainer').addEventListener('input', function(e) {
             if (e.target.classList.contains('addon-engage-slider')) {
                 const field = e.target.dataset.field;
@@ -3472,6 +3550,24 @@
             // sessionId persists across pre→post (same session) but regenerates on Start New Session (post→new)
             if (timing === 'post') {
                 sessionId = generateSessionId();
+                // Clear persisted ANON ID so next person gets a fresh one
+                if (isAnonymousMode) {
+                    const storageKey = 'sfi_anon_id_' + deploymentId;
+                    localStorage.removeItem(storageKey);
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                    anonId = 'ANON-' + Array.from({length: 6}, () =>
+                        chars[Math.floor(Math.random() * chars.length)]).join('');
+                    localStorage.setItem(storageKey, anonId);
+                    participantId = anonId;
+                    // Clear post-pending flag and protocol — next person starts at pre
+                    sessionStorage.removeItem('sfi_post_pending_' + deploymentId);
+                    sessionStorage.removeItem('sfi_protocol_' + deploymentId);
+                    // Clear session param from URL — next person starts with a clean URL
+                    const newParams = new URLSearchParams(window.location.search);
+                    newParams.delete('session');
+                    const newSearch = newParams.toString();
+                    window.history.replaceState(null, '', newSearch ? '?' + newSearch : window.location.pathname);
+                }
             }
             // NOTE: sessionId, participantId, participantStatus, and consent are intentionally NOT cleared.
             // They must persist across preÃ¢â€ â€™post within the same session.
@@ -3697,11 +3793,81 @@
 
         // ── Anonymous mode init ──────────────────────────────────────────────
         // Hide name fields entirely, set ANON ID, go straight to consent gate.
+        // If session param is in URL, query backend to check what timings already
+        // exist — prevents a completed pair being overwritten if Dani reloads
+        // after post submits instead of tapping Start New Session.
         if (isAnonymousMode) {
             document.getElementById('setupSection').classList.add('hidden');
             participantId = anonId;
             participantStatus = 'new';
-            showConsentGate(timing);
+            const postPending = sessionStorage.getItem('sfi_post_pending_' + deploymentId);
+            const restoredFromSession = urlParams.get('session') && urlParams.get('session').startsWith('ANON-');
+
+            if (restoredFromSession) {
+                // Query backend to check what's already saved for this ANON ID
+                (async function() {
+                    let timings = [];
+                    try {
+                        const res = await fetch(SUPABASE_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                            },
+                            body: JSON.stringify({ action: 'checkSession', participantName: anonId, deploymentId })
+                        });
+                        const result = await res.json();
+                        timings = result.timings || [];
+                    } catch (err) {
+                        // Network failure — fall back to sessionStorage flag
+                        console.warn('checkSession failed, falling back to sessionStorage', err);
+                    }
+
+                    const hasPost = timings.includes('post');
+                    const hasPre  = timings.includes('pre');
+
+                    if (hasPost) {
+                        // Both pre and post already saved — this session is complete.
+                        // Clear all state so Dani doesn't accidentally overwrite it.
+                        sessionStorage.removeItem('sfi_post_pending_' + deploymentId);
+                        localStorage.removeItem('sfi_anon_id_' + deploymentId);
+                        const cleanParams = new URLSearchParams(window.location.search);
+                        cleanParams.delete('session');
+                        const cleanSearch = cleanParams.toString();
+                        window.history.replaceState(null, '', cleanSearch ? '?' + cleanSearch : window.location.pathname);
+                        // Generate a fresh ID for whoever comes next
+                        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                        anonId = 'ANON-' + Array.from({length: 6}, () =>
+                            chars[Math.floor(Math.random() * chars.length)]).join('');
+                        localStorage.setItem('sfi_anon_id_' + deploymentId, anonId);
+                        participantId = anonId;
+                        showConsentGate('pre');
+                    } else if (hasPre || postPending) {
+                        // Pre saved, no post yet — restore to post-timing, bypass consent
+                        consent = true;
+                        document.getElementById('surveyBody').classList.remove('consent-blocked');
+                        // Restore protocol selection
+                        const storedProtocol = sessionStorage.getItem('sfi_protocol_' + deploymentId);
+                        if (storedProtocol) {
+                            document.getElementById('protocol').value = storedProtocol;
+                            updateProgress();
+                        }
+                        // Restore hormonal stage so Q3 conditional shows correctly on post
+                        const storedStage = sessionStorage.getItem('sfi_hormonal_stage_' + deploymentId);
+                        if (storedStage) {
+                            addonValues['lafdHormonalStage'] = storedStage;
+                            updateShowIf();
+                        }
+                        setTiming('post');
+                        revealSection(document.getElementById('protocolTimingSection'), 0);
+                    } else {
+                        // Nothing saved yet — start fresh at pre
+                        showConsentGate('pre');
+                    }
+                })();
+            } else {
+                showConsentGate(timing);
+            }
         }
 
         // Sex listener for progress tracking
