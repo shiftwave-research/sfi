@@ -3751,7 +3751,8 @@
         function renderProtocolList(query) {
             const q = query.toLowerCase();
             const matches = q.length === 0 ? [] : PROTOCOLS.filter(p => p.toLowerCase().includes(q));
-            if (matches.length === 0) {
+            // Suppress dropdown when the typed value is already an exact match — no need to show options
+            if (matches.length === 0 || PROTOCOLS.some(p => p.toLowerCase() === q)) {
                 protocolList.classList.add('hidden');
                 return;
             }
