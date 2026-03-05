@@ -2201,7 +2201,10 @@
             function engageSlider() {
                 if (!formData[id + 'Engaged']) {
                     formData[id + 'Engaged'] = true;
+                    formData[id] = parseInt(slider.value);
                     vasItem.classList.add('engaged');
+                    valueDisplay.textContent = slider.value;
+                    updateProgress();
                 }
             }
             
