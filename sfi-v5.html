@@ -2678,6 +2678,8 @@
             lockTiming();   // Prevent timing toggle during async submission (race condition fix)
             lockNames();    // Freeze identity fields during submission
             
+            const staiScore = calculateSTAI6Score();
+
             const payload = {
                 action: 'submit',
                 participantName: participantName,
@@ -2761,6 +2763,19 @@
                         ? 'Start New Session'
                         : 'Record Post-Session Check-In';
                 }
+            }
+
+            // ── Offline fast-path: skip fetch entirely, queue immediately ──────
+            // navigator.onLine is false when DevTools throttling is set to Offline,
+            // or when the device has no network. Avoids waiting for the 45s AbortController
+            // timeout before showing the queued success screen.
+            if (!navigator.onLine) {
+                clearInterval(tickInterval);
+                SubmissionQueue.enqueue(payload);
+                lockNames();
+                document.getElementById('protocolTimingSection').classList.add('hidden');
+                showSuccessScreen(true);
+                return;
             }
 
             try {
