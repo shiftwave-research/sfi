@@ -1507,6 +1507,24 @@
 <body>
     <div class="progress-bar" id="progressBar" style="width: 0%"></div>
     
+    <!-- Loading state — shown during async config fetch -->
+    <div id="sfiLoadingState" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40vh;padding:48px 24px;text-align:center;">
+        <div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.15);border-top-color:#4ade80;border-radius:50%;animation:sfiSpin 0.8s linear infinite;margin-bottom:20px;"></div>
+        <p style="color:#aaa;font-size:0.9rem;letter-spacing:0.04em;">Loading survey…</p>
+    </div>
+
+    <!-- Config error state — shown when config JSON not found -->
+    <div id="sfiConfigError" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40vh;padding:48px 24px;text-align:center;">
+        <p style="color:#f87171;font-size:1rem;font-weight:600;margin-bottom:8px;">Survey configuration not found.</p>
+        <p style="color:#aaa;font-size:0.85rem;margin-bottom:4px;">Check the URL or contact your Shiftwave administrator.</p>
+        <p style="color:#666;font-size:0.75rem;">Deployment: <code id="sfiConfigErrorCode" style="color:#888;"></code></p>
+    </div>
+
+    <style>
+        @keyframes sfiSpin { to { transform: rotate(360deg); } }
+        #sfiLoadingState.hidden, #sfiConfigError.hidden { display: none !important; }
+    </style>
+
     <div class="container" id="surveyContainer">
         <!-- Header with Logo -->
         <div class="header">
@@ -1950,7 +1968,24 @@
     </div>
     
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-    document.addEventListener('DOMContentLoaded', function() {
+    // ========== LOADING STATE (shown during async config fetch) ==========
+    function showLoadingState() {
+        document.getElementById('surveyContainer').classList.add('hidden');
+        document.getElementById('sfiLoadingState').classList.remove('hidden');
+    }
+    function hideLoadingState() {
+        document.getElementById('sfiLoadingState').classList.add('hidden');
+        document.getElementById('surveyContainer').classList.remove('hidden');
+    }
+    function showConfigError(deploymentId) {
+        document.getElementById('sfiLoadingState').classList.add('hidden');
+        const errEl = document.getElementById('sfiConfigError');
+        errEl.classList.remove('hidden');
+        const codeEl = document.getElementById('sfiConfigErrorCode');
+        if (codeEl) codeEl.textContent = deploymentId || '(none)';
+    }
+
+    async function initSFI() {
         // ========== BACKEND ==========
         // Global infrastructure constants — same for all deployments.
         const SUPABASE_URL      = 'https://kovjwdntsdiwjawewfhs.supabase.co/functions/v1/sfi';
@@ -2036,47 +2071,33 @@
         // Flush any queue left over from a previous session on page load
         if (navigator.onLine) SubmissionQueue.flush();
 
-        // ========== CONFIGURATION ==========
-        // Deployment routing — add new deployments here, nothing else changes.
-        const CONFIG = {
-            DEPLOYMENT_PRESETS: {
-                'CAA_Feb2026': {
-                    displayName: 'CAA',
-                    addons: ['caaPreUsage', 'caaPost']
-                },
-                'Spirit_Mar2026': {
-                    displayName: 'Washington Spirit',
-                    addons: ['soreness', 'menstrual']
-                },
-                'McLaren_Mar2026': {
-                    displayName: 'McLaren Racing',
-                    addons: ['mclarenPreSection', 'mclarenSoreness', 'mclarenPerfReadiness', 'mclarenPost']
-                },
-                'Randi_SSS_Trial': {
-                    displayName: 'Randi',
-                    addons: [],
-                    // Core SSS only — no addon questions.
-                    // studyTag is included in every submission to tag this data
-                    // as the Randi stopgap trial, separate from field deployments.
-                    // TODO: Replace participantName lookup with Randi app userId.
-                    // TODO: Add protocolName field when protocol integration is scoped.
-                    studyTag: 'randi_sss_trial_2026'
-                },
-                'LAFD_Mar2026': {
-                    displayName: "LAFD Women's Wellness Workshop",
-                    addons: ['lafdPre', 'lafdPost'],
-                    anonymousMode: true,
-                    defaultProtocol: 'Hormone Resilience'
-                }
-            }
-        };
+        // ========== ADDON REGISTRY ==========
+        // Starts empty — all addon content is loaded from configs/{deployment}.json
+        let ADDON_REGISTRY = {};
 
-        // ========== URL PARAMS ==========
+        // ========== ASYNC CONFIG LOAD ==========
         const urlParams = new URLSearchParams(window.location.search);
         const deploymentId = urlParams.get('deployment') || '';
         const isFieldMode = deploymentId !== '';
-        const activePreset = isFieldMode ? (CONFIG.DEPLOYMENT_PRESETS[deploymentId] || {}) : {};
-        const activeAddons = isFieldMode ? (activePreset.addons || []) : [];
+
+        let activePreset = {};
+
+        if (isFieldMode) {
+            try {
+                showLoadingState();
+                const configRes = await fetch(`/sfi/configs/${deploymentId.toLowerCase()}.json`);
+                if (!configRes.ok) throw new Error('Config not found: ' + deploymentId);
+                const configData = await configRes.json();
+                activePreset = configData.preset || {};
+                Object.assign(ADDON_REGISTRY, configData.addons || {});
+                hideLoadingState();
+            } catch (e) {
+                showConfigError(deploymentId);
+                return; // Hard stop — do not render a broken survey
+            }
+        }
+
+        const activeAddons = activePreset.addons || [];
 
         // ── Anonymous mode ──────────────────────────────────────────────────────
         // Deployments with anonymousMode:true bypass name entry and key table.
@@ -3000,385 +3021,6 @@
             return fields;
         }
 
-                // ========== ADDON REGISTRY ==========
-        const ADDON_REGISTRY = {
-            // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Individual addons (Spirit / general) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-            mentalReadiness: {
-                insertAfter: 'vasItem_mentalQuiet', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonMentalReadiness', question: 'How mentally ready do you feel right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
-                ],
-            },
-            soreness: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonSoreness', question: 'Rate your current muscle soreness.', labelLow: 'None', labelHigh: 'Severe' },
-                ],
-            },
-            menstrual: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both',
-                html: `
-                <div class="addon-question-block addon-item" id="addonItem_menstrual">
-                    <div class="likert-question">Rate your current menstrual symptom severity</div>
-                    <div class="addon-ss-group" data-field="addonMenstrual" style="flex-direction:row;gap:8px;">
-                        <button class="addon-ss-btn" data-value="none" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">None</button>
-                        <button class="addon-ss-btn" data-value="mild" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">Mild</button>
-                        <button class="addon-ss-btn" data-value="moderate" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">Moderate</button>
-                        <button class="addon-ss-btn" data-value="severe" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">Severe</button>
-                    </div>
-                </div>`
-            },
-
-            // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CAA addons ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-            caaPreUsage: {
-                insertAfter: 'surveyBodyStart',
-                timing: 'pre',
-                required: { pre: ['caaUsageCount', 'caaPromptedBy'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
-                    { type: 'singleSelect', field: 'caaUsageCount',
-                      question: 'How many times have you used the Shiftwave chair before today?',
-                      blockId: 'caaUsageCountBlock',
-                      skipIfReturning: true,
-                      conditionalTarget: 'caaConditional',
-                      options: [
-                        { value: 'first_time', label: 'This is my first time' },
-                        { value: '1_2',        label: '1–2 times' },
-                        { value: '3_5',        label: '3–5 times' },
-                        { value: '6_10',       label: '6–10 times' },
-                        { value: '10plus',     label: 'More than 10 times' },
-                    ]},
-                    { type: 'singleSelect', field: 'caaPromptedBy',
-                      question: "What's your main reason for using Shiftwave today?",
-                      options: [
-                        { value: 'stress_anxiety', label: 'Stress or anxiety' },
-                        { value: 'relax',          label: 'To relax / unwind' },
-                        { value: 'focus',          label: 'To improve focus or mental clarity' },
-                        { value: 'physical',       label: 'Physical tension or discomfort' },
-                        { value: 'break',          label: 'Wellness or scheduled break' },
-                        { value: 'preventative',   label: 'Preventative / regular routine' },
-                        { value: 'available',      label: 'Saw the chair was available' },
-                        { value: 'recommended',    label: 'Recommended by someone' },
-                        { value: 'curiosity',      label: 'Curiosity / trying it out' },
-                        { value: 'other',          label: 'Other' },
-                    ]},
-                    { type: 'conditional', id: 'caaConditional', questions: [
-                        { type: 'multiSelect', field: 'caaTiming',
-                          question: 'When do you typically use Shiftwave?',
-                          hint: 'Select all that apply',
-                          exclusiveValue: 'no_pattern',
-                          options: [
-                            { value: 'morning',    label: 'Morning (to start the day)' },
-                            { value: 'mid_morning',label: 'Mid-morning (work break)' },
-                            { value: 'lunch',      label: 'Lunch break' },
-                            { value: 'afternoon',  label: 'Afternoon (mid-day slump)' },
-                            { value: 'after_work', label: 'After work (transition home)' },
-                            { value: 'no_pattern', label: 'No regular pattern' },
-                            { value: 'other',      label: 'Other' },
-                        ]},
-                        { type: 'multiSelect', field: 'caaKeepsComing',
-                          question: 'What keeps you coming back to Shiftwave?',
-                          hint: 'Select all that apply',
-                          options: [
-                            { value: 'effective',    label: "It's effective at reducing my stress / anxiety" },
-                            { value: 'convenient',   label: "It's quick and convenient" },
-                            { value: 'fits_routine', label: 'It fits into my work routine easily' },
-                            { value: 'physical',     label: 'I enjoy the physical sensation' },
-                            { value: 'refocus',      label: 'It helps me refocus' },
-                            { value: 'better',       label: "It's better than alternatives I've tried" },
-                            { value: 'routine',      label: "It's become part of my wellness routine" },
-                            { value: 'other',        label: 'Other' },
-                        ]},
-                    ]},
-                ],
-            },
-            caaPost: {
-                insertAfter: 'emojiGridSection',
-                timing: 'post',
-                // Explicit required preserves original behavior (caaReturnReady intentionally optional)
-                required: { post: ['caaAccept1','caaAccept2','caaAccept3','caaAccept4','caaAccept5','caaAccept6',
-                                    'caaUseAgain','caaRecommend','caaFrequency'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Your Experience' },
-                    { type: 'sectionDescription', html: 'Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span>' },
-                    { type: 'likert5', field: 'caaAccept1', question: 'I enjoyed this session' },
-                    { type: 'likert5', field: 'caaAccept2', question: 'The session fit conveniently into my day' },
-                    { type: 'likert5', field: 'caaAccept3', question: 'I understand how Shiftwave is supposed to help' },
-                    { type: 'likert5', field: 'caaAccept4', question: 'This session helped me feel calmer and more relaxed' },
-                    { type: 'likert5', field: 'caaAccept5', question: 'The vibration sensation was comfortable' },
-                    { type: 'likert5', field: 'caaAccept6', question: 'I would use Shiftwave as part of my stress management routine' },
-                    { type: 'sectionHeader', label: 'Workplace', style: 'margin-top:24px;' },
-                    { type: 'nps', field: 'caaReturnReady', question: 'How ready do you feel to return to your work tasks right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
-                    { type: 'nps', field: 'caaUseAgain',    question: 'How likely are you to use Shiftwave again?',                   labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'nps', field: 'caaRecommend',   question: 'How likely are you to recommend Shiftwave to a colleague?',    labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'singleSelect', field: 'caaFrequency', question: 'How often do you see yourself using Shiftwave at the office?', options: [
-                        { value: 'daily',     label: 'Daily' },
-                        { value: 'few_week',  label: 'A few times a week' },
-                        { value: 'weekly',    label: 'Weekly' },
-                        { value: 'few_month', label: 'A few times a month' },
-                        { value: 'rarely',    label: 'Rarely' },
-                    ]},
-                ],
-            },
-            // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ McLaren addons ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-            mclarenPreSection: {
-                insertAfter: 'surveyBodyStart',
-                timing: 'pre',
-                required: { pre: ['mclRole', 'mclUsageCount', 'mclPrimaryReason', 'mclPromptedBy'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Role &amp; Usage' },
-                    { type: 'singleSelect', field: 'mclRole',
-                      question: 'What is your role?',
-                      options: [
-                        { value: 'driver',     label: 'Driver' },
-                        { value: 'engineer',   label: 'Engineer' },
-                        { value: 'mechanic',   label: 'Mechanic' },
-                        { value: 'strategist', label: 'Strategist' },
-                        { value: 'management', label: 'Team Management' },
-                        { value: 'physio',     label: 'Physiotherapist / Trainer' },
-                        { value: 'other',      label: 'Other' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclUsageCount',
-                      question: 'How many times have you used the Shiftwave chair before today?',
-                      conditionalTarget: 'mclConditional',
-                      options: [
-                        { value: 'first_time', label: 'This is my first time' },
-                        { value: '1_2',        label: '1–2 times' },
-                        { value: '3_5',        label: '3–5 times' },
-                        { value: '6_10',       label: '6–10 times' },
-                        { value: '10plus',     label: 'More than 10 times' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclPrimaryReason',
-                      question: 'What is your PRIMARY reason for using Shiftwave today?',
-                      options: [
-                        { value: 'recovery',    label: 'Recovery after physical work or exertion' },
-                        { value: 'mental_reset',label: 'Mental reset and focus' },
-                        { value: 'pre_perf',    label: 'Pre-performance preparation' },
-                        { value: 'stress',      label: 'To manage stress or tension' },
-                        { value: 'relax',       label: 'To relax / unwind after a long day' },
-                        { value: 'physical',    label: 'To relieve physical tension or soreness' },
-                        { value: 'curiosity',   label: 'Curiosity / trying it out' },
-                        { value: 'other',       label: 'Other' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclPromptedBy',
-                      question: 'What prompted you to use Shiftwave TODAY?',
-                      options: [
-                        { value: 'stressed',     label: 'Feeling stressed or fatigued' },
-                        { value: 'preventative', label: 'Preventative / regular recovery routine' },
-                        { value: 'physical',     label: 'Physical soreness or discomfort' },
-                        { value: 'focus',        label: 'Trouble focusing or mentally preparing' },
-                        { value: 'downtime',     label: 'Scheduled downtime' },
-                        { value: 'available',    label: 'Saw the chair was available' },
-                        { value: 'recommended',  label: 'Recommended by someone' },
-                        { value: 'other',        label: 'Other' },
-                    ]},
-                    { type: 'conditional', id: 'mclConditional', questions: [
-                        { type: 'multiSelect', field: 'mclTiming',
-                          question: 'When do you typically use Shiftwave?',
-                          hint: 'Select all that apply',
-                          exclusiveValue: 'no_pattern',
-                          options: [
-                            { value: 'before',      label: 'Before work / sessions begin' },
-                            { value: 'during',      label: 'During breaks between tasks' },
-                            { value: 'after',       label: 'After work / sessions (wind down)' },
-                            { value: 'when_stressed',label: "When I'm feeling stressed or fatigued" },
-                            { value: 'routine',     label: 'As part of a regular routine' },
-                            { value: 'no_pattern',  label: 'No regular pattern' },
-                            { value: 'other',       label: 'Other' },
-                        ]},
-                        { type: 'multiSelect', field: 'mclKeepsComing',
-                          question: 'What keeps you coming back to Shiftwave?',
-                          options: [
-                            { value: 'effective',  label: "It's effective at reducing my stress / tension" },
-                            { value: 'convenient', label: "It's quick and convenient" },
-                            { value: 'fits',       label: 'It fits into my routine easily' },
-                            { value: 'physical',   label: 'I enjoy the physical sensation' },
-                            { value: 'refocus',    label: 'It helps me refocus and mentally reset' },
-                            { value: 'better',     label: "It's better than other recovery tools I've tried" },
-                            { value: 'routine',    label: "It's become part of my performance / recovery routine" },
-                            { value: 'other',      label: 'Other' },
-                        ]},
-                    ]},
-                ],
-            },
-            mclarenSoreness: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonMclSoreness', question: 'How sore does your body feel right now?', labelLow: 'Not Sore', labelHigh: 'Extremely Sore' },
-                ],
-            },
-            mclarenPerfReadiness: {
-                insertAfter: 'vasItem_alertness', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonMclPerfReadiness', question: 'How ready do you feel to perform your job right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
-                ],
-            },
-            mclarenPost: {
-                insertAfter: 'emojiGridSection',
-                timing: 'post',
-                // Explicit required preserves original behavior
-                required: { post: ['mclAccept1','mclAccept2','mclAccept3','mclAccept4','mclAccept5','mclAccept6',
-                                    'mclUseAgain','mclRecommend','mclFrequency','mclWouldHelp','mclComparison'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Your Experience' },
-                    { type: 'sectionDescription', html: 'Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span>' },
-                    { type: 'likert5', field: 'mclAccept1', question: 'I enjoyed this session' },
-                    { type: 'likert5', field: 'mclAccept2', question: 'The session fit conveniently into my schedule' },
-                    { type: 'likert5', field: 'mclAccept3', question: 'I understand how Shiftwave is supposed to help' },
-                    { type: 'likert5', field: 'mclAccept4', question: 'This session helped me feel calmer and more relaxed' },
-                    { type: 'likert5', field: 'mclAccept5', question: 'The vibration sensation was comfortable' },
-                    { type: 'likert5', field: 'mclAccept6', question: 'I would use Shiftwave as part of my recovery and performance routine' },
-                    { type: 'sectionHeader', label: 'Performance &amp; Recovery', style: 'margin-top:24px;' },
-                    { type: 'nps', field: 'mclUseAgain',  question: 'How likely are you to use Shiftwave again?',                           labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'nps', field: 'mclRecommend', question: 'How likely are you to recommend Shiftwave to teammates or colleagues?', labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'singleSelect', field: 'mclFrequency', question: 'How often do you see yourself using Shiftwave?', options: [
-                        { value: 'daily',        label: 'Daily' },
-                        { value: 'few_week',     label: 'A few times a week' },
-                        { value: 'weekly',       label: 'Weekly' },
-                        { value: 'race_weekends',label: 'Race weekends only' },
-                        { value: 'few_month',    label: 'A few times a month' },
-                        { value: 'rarely',       label: 'Rarely' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclWouldHelp', question: 'Would having Shiftwave available help improve your work or performance?', options: [
-                        { value: 'def_not',  label: 'Definitely not' },
-                        { value: 'prob_not', label: 'Probably not' },
-                        { value: 'not_sure', label: 'Not sure' },
-                        { value: 'prob_yes', label: 'Probably yes' },
-                        { value: 'def_yes',  label: 'Definitely yes' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclComparison', question: 'How does Shiftwave compare to other recovery or mental preparation tools you use?', options: [
-                        { value: 'much_better',     label: 'Much better' },
-                        { value: 'somewhat_better', label: 'Somewhat better' },
-                        { value: 'same',            label: 'About the same' },
-                        { value: 'somewhat_worse',  label: 'Somewhat worse' },
-                        { value: 'much_worse',      label: 'Much worse' },
-                        { value: 'no_other_tools',  label: "I don't use other tools" },
-                    ]},
-                ],
-            },
-
-            // ── LAFD Women's Wellness Workshop ──────────────────────────────
-            lafdPre: {
-                insertAfter: 'surveyBodyStart',
-                timing: 'pre',
-                required: { pre: ['lafdRole', 'lafdShiftTiming', 'lafdAgeBracket'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'About You' },
-                    { type: 'singleSelect', field: 'lafdRole',
-                      question: 'What best describes your role?',
-                      options: [
-                        { value: 'firefighter',   label: 'Firefighter' },
-                        { value: 'fire_engineer',  label: 'Fire Engineer' },
-                        { value: 'captain',        label: 'Fire Captain or Company Officer' },
-                        { value: 'chief',          label: 'Battalion Chief or above' },
-                        { value: 'paramedic_emt',  label: 'Paramedic or EMT' },
-                        { value: 'prevention',     label: 'Fire Prevention or Inspector' },
-                        { value: 'dispatcher',     label: 'Dispatcher or Communications' },
-                        { value: 'admin',          label: 'Administrative or civilian staff' },
-                        { value: 'other',          label: 'Other' },
-                    ]},
-                    { type: 'singleSelect', field: 'lafdShiftTiming',
-                      question: 'How long since your last work shift ended?',
-                      options: [
-                        { value: 'on_shift',        label: 'Currently on shift' },
-                        { value: 'under_24h',       label: 'Less than 24 hours' },
-                        { value: '1_2_days',        label: '1\u20132 days' },
-                        { value: '3_plus_days',     label: '3 or more days' },
-                        { value: 'standard_hours',  label: 'I work standard business hours' },
-                    ]},
-                    { type: 'singleSelect', field: 'lafdAgeBracket',
-                      question: 'What is your age?',
-                      options: [
-                        { value: 'under_30', label: 'Under 30' },
-                        { value: '30_39',    label: '30\u201339' },
-                        { value: '40_49',    label: '40\u201349' },
-                        { value: '50_59',    label: '50\u201359' },
-                        { value: '60_plus',  label: '60 or older' },
-                    ]},
-                    // optionalBlock:true marks the split point — everything after renders
-                    // inside .optional-block with context paragraph above.
-                    { optionalBlock: true },
-                    { type: 'singleSelect', field: 'lafdHormonalStage',
-                      required: false,
-                      question: 'Which best describes your current hormonal life stage?',
-                      options: [
-                        { value: 'regular_cycles',  label: 'Regular menstrual cycles' },
-                        { value: 'perimenopause',   label: 'Perimenopause (irregular or changing cycles)' },
-                        { value: 'post_menopause',  label: 'Post-menopause (no longer have periods)' },
-                        { value: 'pregnant_pp',     label: 'Pregnant or postpartum' },
-                        { value: 'prefer_not',      label: 'Prefer not to say' },
-                    ]},
-                    { type: 'singleSelect', field: 'lafdCyclePhase',
-                      required: false,
-                      question: 'Roughly where are you in your cycle right now?',
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles'] },
-                      options: [
-                        { value: 'menstrual',   label: 'Menstrual (period)' },
-                        { value: 'follicular',  label: 'Follicular (post-period, pre-ovulation)' },
-                        { value: 'ovulation',   label: 'Around ovulation' },
-                        { value: 'luteal',      label: 'Luteal (pre-period)' },
-                        { value: 'not_sure',    label: 'Not sure' },
-                    ]},
-                    // P5a — menstrual symptoms (regular cycles only)
-                    { type: 'singleSelect', field: 'lafdSymptomSeverity',
-                      required: false,
-                      question: "Rate the severity of any menstrual symptoms you're experiencing right now.",
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles'] },
-                      options: [
-                        { value: 'none',     label: 'None' },
-                        { value: 'mild',     label: 'Mild' },
-                        { value: 'moderate', label: 'Moderate' },
-                        { value: 'severe',   label: 'Severe' },
-                    ]},
-                    // P5b — perimenopausal/menopausal symptoms (perimenopause and post-menopause)
-                    // Perimenopausal women intentionally see both P5a and P5b.
-                    { type: 'singleSelect', field: 'lafdMenopauseSymptoms',
-                      required: false,
-                      question: 'Rate the severity of any perimenopausal or menopausal symptoms you\'re experiencing right now.',
-                      showIf: { field: 'lafdHormonalStage', value: ['perimenopause', 'post_menopause'] },
-                      options: [
-                        { value: 'none',     label: 'None' },
-                        { value: 'mild',     label: 'Mild' },
-                        { value: 'moderate', label: 'Moderate' },
-                        { value: 'severe',   label: 'Severe' },
-                    ]},
-                ],
-            },
-            lafdPost: {
-                insertAfter: 'emojiGridSection',
-                timing: 'post',
-                questions: [
-                    { type: 'vas', field: 'lafdSessionUtility',
-                      question: 'How well did this session meet your needs today?',
-                      labelLow: 'Not at all', labelHigh: 'Completely' },
-                    { type: 'multiSelect', field: 'lafdUsageContext',
-                      question: 'Where could you see yourself using Shiftwave?',
-                      hint: 'Select all that apply',
-                      exclusiveValues: ['not_work', 'not_sure'],
-                      options: [
-                        { value: 'after_shift',   label: 'After a shift, for decompression and recovery' },
-                        { value: 'before_shift',  label: 'Before a shift, to get mentally ready' },
-                        { value: 'firehouse',     label: 'During downtime at the firehouse' },
-                        { value: 'home_wellness', label: 'At home, for personal wellness' },
-                        { value: 'not_work',      label: "I wouldn't use it in a work context" },
-                        { value: 'not_sure',      label: "I'm not sure yet" },
-                    ]},
-                    // Q3: shown only if P3 (lafdHormonalStage) was answered and not 'prefer_not'
-                    { type: 'singleSelect', field: 'lafdHormonalAttribution',
-                      required: false,
-                      question: 'Did today\'s session help ease any symptoms related to your hormonal health?',
-                      showIfAnswered: { field: 'lafdHormonalStage', exclude: ['prefer_not'] },
-                      options: [
-                        { value: 'yes_noticeably', label: 'Yes, noticeably' },
-                        { value: 'somewhat',       label: 'Somewhat' },
-                        { value: 'not_really',     label: 'Not that I could tell' },
-                        { value: 'no_symptoms',    label: 'I wasn\'t experiencing symptoms today' },
-                    ]},
-                ],
-            },
-        };
-
-        // REGISTRY END ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â injection below
 
         // ========== ADDON INJECTION ==========
         function wireAddonElement(el) {
@@ -4148,7 +3790,9 @@
         window.closeTutorial = closeTutorial;
         window.updateConsentBtn = updateConsentBtn;
         window.triggerLookupIfReady = triggerLookupIfReady;
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', initSFI);
     </script>
 
     <!-- EmojiGrid Tutorial Modal -->
