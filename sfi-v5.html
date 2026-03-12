@@ -2765,6 +2765,23 @@
                 }
             }
 
+            // ── Pre-session sessionStorage writes ─────────────────────────────
+            // Must happen BEFORE the fetch (and before the offline fast-path) so that
+            // Q3 showIfAnswered and the URL restoration work even when pre-session
+            // submits offline and never reaches the try block.
+            if (timing === 'pre') {
+                if (addonValues['lafdHormonalStage']) {
+                    sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
+                }
+                if (isAnonymousMode) {
+                    const newParams = new URLSearchParams(window.location.search);
+                    newParams.set('session', anonId);
+                    window.history.replaceState(null, '', '?' + newParams.toString());
+                    sessionStorage.setItem('sfi_post_pending_' + deploymentId, '1');
+                    sessionStorage.setItem('sfi_protocol_' + deploymentId, document.getElementById('protocol').value.trim());
+                }
+            }
+
             // ── Offline fast-path: skip fetch entirely, queue immediately ──────
             // navigator.onLine is false when DevTools throttling is set to Offline,
             // or when the device has no network. Avoids waiting for the 45s AbortController
@@ -2797,22 +2814,6 @@
                 // Store returned participant ID for post-session
                 if (result.participantId) {
                     participantId = result.participantId;
-                }
-
-                // Persist hormonal stage for post-session Q3 conditional
-                if (timing === 'pre' && addonValues['lafdHormonalStage']) {
-                    sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
-                }
-
-                // Write ANON ID to URL after pre-session so a reload mid-session restores pairing
-                // even in incognito where localStorage is unavailable
-                if (isAnonymousMode && timing === 'pre') {
-                    const newParams = new URLSearchParams(window.location.search);
-                    newParams.set('session', anonId);
-                    window.history.replaceState(null, '', '?' + newParams.toString());
-                    // Persist timing and protocol so a reload mid-session restores fully
-                    sessionStorage.setItem('sfi_post_pending_' + deploymentId, '1');
-                    sessionStorage.setItem('sfi_protocol_' + deploymentId, document.getElementById('protocol').value.trim());
                 }
 
                 // Lock names on submission — identity committed, consistent with timing lock logic
@@ -3526,6 +3527,12 @@
         // and shows/hides based on current addonValues.
         function updateShowIf() {
             document.querySelectorAll('.addon-showif').forEach(function(el) {
+                // Skip if this showIf wrapper is inside a timing section that's currently hidden
+                // (e.g. pre-section elements during post-session). Evaluating them can cause
+                // stale-clearing to delete addonValues entries that post-session still needs.
+                const timingParent = el.closest('.addon-pre-only, .addon-post-only');
+                if (timingParent && timingParent.classList.contains('hidden')) return;
+
                 var field = el.dataset.showifField;
                 var trigger = JSON.parse(el.dataset.showifValue);
                 var current = addonValues[field];
