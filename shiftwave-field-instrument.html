@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shiftwave Session Survey v4</title>
+    <title>Shiftwave Session Survey v5</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
@@ -193,14 +193,16 @@
         .timing-lock-note {
             font-size: 0.7rem;
             color: #555;
-            margin-top: 6px;
+            margin-top: 10px;
             letter-spacing: 0.03em;
+            display: block;
         }
         /* Pre-session escape hatch link */
         .timing-escape {
             font-size: 0.72rem;
             color: #555;
-            margin-top: 7px;
+            margin-top: 10px;
+            margin-bottom: 4px;
             display: block;
         }
         .timing-escape a {
@@ -897,6 +899,23 @@
             font-size: 0.9rem;
             cursor: pointer;
         }
+
+        /* Queued (offline) success variant */
+        .success-message.queued .checkmark {
+            color: #f59e0b;
+        }
+        .success-message.queued h2 {
+            color: #f59e0b;
+        }
+        .queued-note {
+            margin-top: 12px;
+            font-size: 0.78rem;
+            color: #666;
+            line-height: 1.5;
+            max-width: 280px;
+            margin-left: auto;
+            margin-right: auto;
+        }
         
         /* Hidden */
         .hidden { display: none !important; }
@@ -1174,6 +1193,36 @@
             margin-top: 0;
         }
 
+        .optional-context-banner {
+            background: #2a0f1e;
+            border: 1px solid #7a2a50;
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 16px;
+            color: #f9a8d4;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .survey-start-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0 20px;
+            color: #4ade80;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .survey-start-divider::before,
+        .survey-start-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #2a6b3a;
+        }
+
         /* Wrapper giving breathing room between questions */
         .addon-question-block {
             margin-bottom: 24px;
@@ -1439,36 +1488,6 @@
             font-weight: 500;
         }
 
-        .optional-context-banner {
-            background: #2a0f1e;
-            border: 1px solid #7a2a50;
-            border-radius: 12px;
-            padding: 14px 20px;
-            margin-bottom: 16px;
-            color: #f9a8d4;
-            font-size: 0.85rem;
-            line-height: 1.5;
-        }
-
-        .survey-start-divider {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin: 4px 0 20px;
-            color: #4ade80;
-            font-size: 0.75rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-        }
-        .survey-start-divider::before,
-        .survey-start-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #2a6b3a;
-        }
-
         /* ========== PROGRESSIVE DISCLOSURE ANIMATIONS ========== */
         @keyframes revealDown {
             from { opacity: 0; transform: translateY(-10px); }
@@ -1490,6 +1509,24 @@
 <body>
     <div class="progress-bar" id="progressBar" style="width: 0%"></div>
     
+    <!-- Loading state — shown during async config fetch -->
+    <div id="sfiLoadingState" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40vh;padding:48px 24px;text-align:center;">
+        <div style="width:32px;height:32px;border:3px solid rgba(255,255,255,0.15);border-top-color:#4ade80;border-radius:50%;animation:sfiSpin 0.8s linear infinite;margin-bottom:20px;"></div>
+        <p style="color:#aaa;font-size:0.9rem;letter-spacing:0.04em;">Loading survey…</p>
+    </div>
+
+    <!-- Config error state — shown when config JSON not found -->
+    <div id="sfiConfigError" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:40vh;padding:48px 24px;text-align:center;">
+        <p style="color:#f87171;font-size:1rem;font-weight:600;margin-bottom:8px;">Survey configuration not found.</p>
+        <p style="color:#aaa;font-size:0.85rem;margin-bottom:4px;">Check the URL or contact your Shiftwave administrator.</p>
+        <p style="color:#666;font-size:0.75rem;">Deployment: <code id="sfiConfigErrorCode" style="color:#888;"></code></p>
+    </div>
+
+    <style>
+        @keyframes sfiSpin { to { transform: rotate(360deg); } }
+        #sfiLoadingState.hidden, #sfiConfigError.hidden { display: none !important; }
+    </style>
+
     <div class="container" id="surveyContainer">
         <!-- Header with Logo -->
         <div class="header">
@@ -1522,8 +1559,9 @@
             <p>~60 seconds &bull; All responses confidential</p>
         </div>
         
-        <!-- Setup: name entry. Hidden entirely in anonymous mode. -->
+        <!-- Setup -->
         <div class="setup-section" id="setupSection">
+            <!-- Setup: name entry. Hidden entirely in anonymous mode. -->
             <div class="field-row" id="nameRow">
                 <div class="field">
                     <label>First Name</label>
@@ -1583,7 +1621,6 @@
                 <span class="timing-lock-note hidden" id="timingLockNote">Timing locked for this session</span>
             </div>
         </div>
-        
 
         <!-- New participant banner -->
         <div id="newParticipantBanner" class="hidden">✦ Welcome — please read and accept consent below to begin</div>
@@ -1904,6 +1941,79 @@
             <div class="grid-values" id="gridValues">Tap inside the grid</div>
         </div>
 
+        <!-- Core Female Health — PRE: opt-in gate + hormonal context questions -->
+        <!-- Hidden by default; revealed by updateCoreBlock() when sex=female and timing=pre -->
+        <div id="coreFemalePreBlock" class="section hidden" style="border-color: #4a2040;">
+            <div id="coreFemaleOptIn">
+                <div style="font-size:0.85rem; color:#c084a0; margin-bottom:12px; line-height:1.5;">
+                    We're studying how hormonal context may influence session outcomes.
+                    Would you like to answer a few optional questions about this?
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" id="coreFemaleYes" class="timing-btn">Yes, include me</button>
+                    <button type="button" id="coreFemaleSkip" class="timing-btn">Skip</button>
+                </div>
+            </div>
+            <div id="coreFemaleQuestions" class="hidden" style="margin-top:16px;">
+                <div class="addon-question-block">
+                    <div class="addon-question">Which best describes your current hormonal life stage?</div>
+                    <div class="addon-ss-group" data-field="core_hormonal_stage">
+                        <button class="addon-ss-btn" data-value="regular_cycles">Regular menstrual cycles</button>
+                        <button class="addon-ss-btn" data-value="perimenopause">Perimenopause (irregular or changing cycles)</button>
+                        <button class="addon-ss-btn" data-value="post_menopause">Post-menopause (no longer have periods)</button>
+                        <button class="addon-ss-btn" data-value="pregnant_pp">Pregnant or postpartum</button>
+                        <button class="addon-ss-btn" data-value="prefer_not">Prefer not to say</button>
+                    </div>
+                </div>
+                <div class="addon-showif hidden"
+                     data-showif-field="core_hormonal_stage"
+                     data-showif-value='["regular_cycles","perimenopause"]'>
+                    <div class="addon-question-block">
+                        <div class="addon-question">Roughly where are you in your cycle right now?</div>
+                        <div class="addon-ss-group" data-field="core_cycle_phase">
+                            <button class="addon-ss-btn" data-value="menstrual">Menstrual (period)</button>
+                            <button class="addon-ss-btn" data-value="follicular">Follicular (post-period, pre-ovulation)</button>
+                            <button class="addon-ss-btn" data-value="ovulation">Around ovulation</button>
+                            <button class="addon-ss-btn" data-value="luteal">Luteal (pre-period)</button>
+                            <button class="addon-ss-btn" data-value="not_sure">Not sure</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="addon-showif hidden"
+                     data-showif-field="core_hormonal_stage"
+                     data-showif-value='["regular_cycles","perimenopause"]'>
+                    <div class="addon-question-block">
+                        <div class="addon-question">Rate the severity of any menstrual or hormonal symptoms you're experiencing right now.</div>
+                        <div class="addon-ss-group" data-field="core_symptom_severity">
+                            <button class="addon-ss-btn" data-value="none">None</button>
+                            <button class="addon-ss-btn" data-value="mild">Mild</button>
+                            <button class="addon-ss-btn" data-value="moderate">Moderate</button>
+                            <button class="addon-ss-btn" data-value="severe">Severe</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Core Female Health — POST: hormonal attribution question -->
+        <!-- Hidden by default; revealed by updateCoreBlock() when sex=female and timing=post -->
+        <!-- Inner showIfAnswered gate ensures it only shows if pre hormonal stage was answered -->
+        <div id="coreFemalePostBlock" class="section hidden" style="border-color: #4a2040;">
+            <div class="addon-showif-answered hidden"
+                 data-showanswered-field="core_hormonal_stage"
+                 data-showanswered-exclude='["prefer_not"]'>
+                <div class="addon-question-block">
+                    <div class="addon-question">Did your experience of any hormonal or menstrual symptoms change during today's session?</div>
+                    <div class="addon-ss-group" data-field="core_hormonal_change">
+                        <button class="addon-ss-btn" data-value="improved_noticeably">Yes — symptoms noticeably improved</button>
+                        <button class="addon-ss-btn" data-value="improved_somewhat">Somewhat improved</button>
+                        <button class="addon-ss-btn" data-value="no_change">No noticeable change</button>
+                        <button class="addon-ss-btn" data-value="no_symptoms">I wasn't experiencing symptoms today</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Optional Comment -->
         <div class="section">
             <div class="section-title" id="commentSectionTitle">What's motivating you to do a Shiftwave session right now?</div>
@@ -1917,10 +2027,11 @@
 
     <!-- Success screen (outside surveyBody so it's not blocked by consent or hidden with body) -->
     <div class="hidden" id="successContainer">
-        <div class="success-message">
+        <div class="success-message" id="successMessage">
             <div class="checkmark">&#10003;</div>
             <h2 id="successHeading">Check-In Recorded</h2>
             <p id="successDetails">Pre-session check-in complete</p>
+            <p class="queued-note hidden" id="queuedNote">Your response is saved on this device and will be sent automatically when the connection improves.</p>
             <button class="reset-btn" id="successBtn" onclick="resetForm()">Record Post-Session Check-In</button>
         </div>
     </div>
@@ -1932,53 +2043,142 @@
     </div>
     
     <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-    document.addEventListener('DOMContentLoaded', function() {
+    // ========== LOADING STATE (shown during async config fetch) ==========
+    function showLoadingState() {
+        document.getElementById('surveyContainer').classList.add('hidden');
+        document.getElementById('sfiLoadingState').classList.remove('hidden');
+    }
+    function hideLoadingState() {
+        document.getElementById('sfiLoadingState').classList.add('hidden');
+        document.getElementById('surveyContainer').classList.remove('hidden');
+    }
+    function showConfigError(deploymentId) {
+        document.getElementById('sfiLoadingState').classList.add('hidden');
+        const errEl = document.getElementById('sfiConfigError');
+        errEl.classList.remove('hidden');
+        const codeEl = document.getElementById('sfiConfigErrorCode');
+        if (codeEl) codeEl.textContent = deploymentId || '(none)';
+    }
+
+    async function initSFI() {
         // ========== BACKEND ==========
         // Global infrastructure constants — same for all deployments.
         const SUPABASE_URL      = 'https://kovjwdntsdiwjawewfhs.supabase.co/functions/v1/sfi';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtvdmp3ZG50c2Rpd2phd2V3ZmhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2Mjg4NTYsImV4cCI6MjA4NzIwNDg1Nn0.rrXI2VLR6gIoWLMI24g1ig_bZ21C3wcGg2noq0iC0E4';
 
-        // ========== CONFIGURATION ==========
-        // Deployment routing — add new deployments here, nothing else changes.
-        const CONFIG = {
-            DEPLOYMENT_PRESETS: {
-                'CAA_Feb2026': {
-                    displayName: 'CAA',
-                    addons: ['caaPreUsage', 'caaPost']
-                },
-                'Spirit_Mar2026': {
-                    displayName: 'Washington Spirit',
-                    addons: ['soreness', 'menstrual']
-                },
-                'McLaren_Mar2026': {
-                    displayName: 'McLaren Racing',
-                    addons: ['mclarenPreSection', 'mclarenSoreness', 'mclarenPerfReadiness', 'mclarenPost']
-                },
-                'Randi_SSS_Trial': {
-                    displayName: 'Randi',
-                    addons: [],
-                    // Core SSS only — no addon questions.
-                    // studyTag is included in every submission to tag this data
-                    // as the Randi stopgap trial, separate from field deployments.
-                    // TODO: Replace participantName lookup with Randi app userId.
-                    // TODO: Add protocolName field when protocol integration is scoped.
-                    studyTag: 'randi_sss_trial_2026'
-                },
-                'LAFD_Mar2026': {
-                    displayName: "LAFD Women's Wellness Workshop",
-                    addons: ['lafdPre', 'lafdPost'],
-                    anonymousMode: true,
-                    defaultProtocol: 'Hormone Resilience'
+        // ========== OFFLINE SUBMISSION QUEUE ==========
+        // Catches failed submit POSTs, persists them to localStorage,
+        // and retries automatically when connectivity returns.
+        // Relevant for anonymous/QR deployments at events with unpredictable WiFi.
+        const SubmissionQueue = {
+            STORAGE_KEY: 'sfi_submission_queue',
+
+            load() {
+                try {
+                    return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
+                } catch { return []; }
+            },
+
+            save(queue) {
+                try {
+                    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(queue));
+                } catch (e) {
+                    console.warn('SFI: Could not persist submission queue', e);
                 }
+            },
+
+            enqueue(payload) {
+                const queue = this.load();
+                queue.push({
+                    payload,
+                    enqueuedAt: new Date().toISOString(),
+                    attempts: 0
+                });
+                this.save(queue);
+                console.log('SFI: Submission queued. Queue length:', queue.length);
+            },
+
+            // Returns true if a pre-session payload for this anonId is sitting in the
+            // queue undelivered. Used to short-circuit the Supabase checkSession call
+            // so we don't incorrectly conclude "no pre exists" when it's just queued locally.
+            hasPendingPreInQueue(anonId) {
+                if (!anonId) return false;
+                return this.load().some(item =>
+                    item.payload.anonId === anonId && item.payload.timing === 'pre'
+                );
+            },
+
+            async flush() {
+                // Throttle: don't retry more than once every 30s to prevent a flapping
+                // connection (e.g. airplane WiFi) from burning through retry attempts rapidly.
+                const now = Date.now();
+                if (this._lastFlush && (now - this._lastFlush) < 30000) return 0;
+                this._lastFlush = now;
+
+                const queue = this.load();
+                if (queue.length === 0) return 0;
+                console.log('SFI: Flushing queue, items:', queue.length);
+
+                const remaining = [];
+                for (const item of queue) {
+                    try {
+                        const res = await fetch(SUPABASE_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                            },
+                            body: JSON.stringify(item.payload)
+                        });
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        console.log('SFI: Queued item sent successfully');
+                    } catch (e) {
+                        item.attempts += 1;
+                        console.warn('SFI: Queued item retry failed, attempts:', item.attempts, e);
+                        if (item.attempts < 25) remaining.push(item); // drop after 25 attempts (~12hrs at 30s interval)
+                    }
+                }
+                this.save(remaining);
+                return remaining.length;
             }
         };
 
-        // ========== URL PARAMS ==========
+        // Retry queued submissions when connectivity is restored
+        window.addEventListener('online', () => {
+            console.log('SFI: Network restored — flushing submission queue');
+            SubmissionQueue.flush();
+        });
+
+        // Flush any queue left over from a previous session on page load
+        if (navigator.onLine) SubmissionQueue.flush();
+
+        // ========== ADDON REGISTRY ==========
+        // Starts empty — all addon content is loaded from configs/{deployment}.json
+        let ADDON_REGISTRY = {};
+
+        // ========== ASYNC CONFIG LOAD ==========
         const urlParams = new URLSearchParams(window.location.search);
         const deploymentId = urlParams.get('deployment') || '';
         const isFieldMode = deploymentId !== '';
-        const activePreset = isFieldMode ? (CONFIG.DEPLOYMENT_PRESETS[deploymentId] || {}) : {};
-        const activeAddons = isFieldMode ? (activePreset.addons || []) : [];
+
+        let activePreset = {};
+
+        if (isFieldMode) {
+            try {
+                showLoadingState();
+                const configRes = await fetch(`/sfi/configs/${deploymentId.toLowerCase()}.json`);
+                if (!configRes.ok) throw new Error('Config not found: ' + deploymentId);
+                const configData = await configRes.json();
+                activePreset = configData.preset || {};
+                Object.assign(ADDON_REGISTRY, configData.addons || {});
+                hideLoadingState();
+            } catch (e) {
+                showConfigError(deploymentId);
+                return; // Hard stop — do not render a broken survey
+            }
+        }
+
+        const activeAddons = activePreset.addons || [];
 
         // ── Anonymous mode ──────────────────────────────────────────────────────
         // Deployments with anonymousMode:true bypass name entry and key table.
@@ -2199,10 +2399,7 @@
             function engageSlider() {
                 if (!formData[id + 'Engaged']) {
                     formData[id + 'Engaged'] = true;
-                    formData[id] = parseInt(slider.value);
                     vasItem.classList.add('engaged');
-                    valueDisplay.textContent = slider.value;
-                    updateProgress();
                 }
             }
             
@@ -2303,6 +2500,7 @@
             revealSection(pts, 250);
             setTimeout(function() {
                 document.getElementById('surveyBody').classList.remove('consent-blocked');
+                updateCoreBlock(); // show/hide female health blocks for returning female participants
             }, 500);
         }
 
@@ -2333,6 +2531,7 @@
             revealSection(document.getElementById('protocolTimingSection'), 50);
             setTimeout(function() {
                 document.getElementById('surveyBody').classList.remove('consent-blocked');
+                updateCoreBlock(); // show/hide female health blocks based on sex selection
             }, 350);
             // Scroll to top so Protocol field is the first thing they see
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2365,17 +2564,16 @@
             });
             updateCommentPlaceholder();
             updateAddonVisibility();
+            updateCoreBlock();
         }
         
         // ========== NAME LOCK ==========
         function lockNames() {
-            if (isAnonymousMode) return;
             document.getElementById('firstName').classList.add('field-locked');
             document.getElementById('lastName').classList.add('field-locked');
         }
 
         function unlockNames() {
-            if (isAnonymousMode) return;
             document.getElementById('firstName').classList.remove('field-locked');
             document.getElementById('lastName').classList.remove('field-locked');
         }
@@ -2426,7 +2624,7 @@
             }
             if (!protocol) missing.push({ type: 'setup', id: 'protocol', label: 'Protocol' });
 
-            // Age and sex -- skipped for anonymous mode (addon handles demographics)
+            // Age and sex — skipped for anonymous mode (age captured via addon bracket, sex hardcoded)
             if (!isAnonymousMode && participantStatus !== 'returning') {
                 const ageVal = document.getElementById('participantAge').value.trim();
                 const sexVal = document.getElementById('participantSex').value;
@@ -2570,7 +2768,6 @@
             const participantName = isAnonymousMode ? anonId : getFullName();
             const protocol = document.getElementById('protocol').value.trim();
             const comment = document.getElementById('comment').value.trim();
-            
             // Collect demographics — anonymous mode hardcodes sex:'female' (facilitator-screened)
             // and skips age (captured via lafdAgeBracket in addon). Named deployments use
             // stored values for returning participants, form values for new.
@@ -2580,19 +2777,19 @@
             const sexToSubmit = isAnonymousMode ? 'female'
                 : participantSex !== null ? participantSex
                 : document.getElementById('participantSex').value || null;
-
-            const staiScore = calculateSTAI6Score();
-            
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
             lockTiming();   // Prevent timing toggle during async submission (race condition fix)
             lockNames();    // Freeze identity fields during submission
             
+            const staiScore = calculateSTAI6Score();
+
             const payload = {
                 action: 'submit',
                 participantName: participantName,
                 deploymentId: deploymentId,
+                ...(anonId ? { anonId } : {}),
                 ...(activePreset.studyTag ? { studyTag: activePreset.studyTag } : {}),
                 sessionId: sessionId,
                 consent: consent || 'yes',
@@ -2633,6 +2830,79 @@
                 }
             }, 1000);
 
+            // ── Shared helper: hide form, show success screen ──────────────────
+            function showSuccessScreen(queued) {
+                document.getElementById('setupSection').classList.add('hidden');
+                document.getElementById('consentGate').classList.add('hidden');
+                document.getElementById('surveyBody').classList.add('hidden');
+                document.querySelector('.submit-section').classList.add('hidden');
+                const banner = document.getElementById('welcomeBanner');
+                hideSection(banner);
+                banner.textContent = '';
+                document.getElementById('surveyContainer').classList.remove('hidden');
+                document.getElementById('successContainer').classList.remove('hidden');
+
+                const isPost = timing === 'post';
+                const msg = document.getElementById('successMessage');
+                const queuedNote = document.getElementById('queuedNote');
+
+                if (queued) {
+                    // Offline / queued state — amber tint, honest messaging
+                    msg.classList.add('queued');
+                    document.getElementById('successHeading').textContent = 'Check-In Saved';
+                    document.getElementById('successDetails').textContent =
+                        "We couldn\u2019t reach the server right now. Your response is saved on this device.";
+                    queuedNote.classList.remove('hidden');
+                    document.getElementById('successBtn').textContent = isPost
+                        ? 'Start New Session'
+                        : 'Record Post-Session Check-In';
+                } else {
+                    // Normal success
+                    msg.classList.remove('queued');
+                    queuedNote.classList.add('hidden');
+                    document.getElementById('successHeading').textContent = isPost ? 'Session Complete' : 'Pre-Session Recorded';
+                    document.getElementById('successDetails').textContent = isPost
+                        ? 'Post-session check-in recorded. Your data is saved.'
+                        : 'Pre-session check-in recorded. Ready for your session.';
+                    document.getElementById('successBtn').textContent = isPost
+                        ? 'Start New Session'
+                        : 'Record Post-Session Check-In';
+                }
+            }
+
+            // ── Pre-session sessionStorage writes ─────────────────────────────
+            // Must happen BEFORE the fetch (and before the offline fast-path) so that
+            // Q3 showIfAnswered and the URL restoration work even when pre-session
+            // submits offline and never reaches the try block.
+            if (timing === 'pre') {
+                if (addonValues['lafdHormonalStage']) {
+                    sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
+                }
+                if (addonValues['core_hormonal_stage']) {
+                    sessionStorage.setItem('sfi_core_hormonal_stage_' + deploymentId, addonValues['core_hormonal_stage']);
+                }
+                if (isAnonymousMode) {
+                    const newParams = new URLSearchParams(window.location.search);
+                    newParams.set('session', anonId);
+                    window.history.replaceState(null, '', '?' + newParams.toString());
+                    sessionStorage.setItem('sfi_post_pending_' + deploymentId, '1');
+                    sessionStorage.setItem('sfi_protocol_' + deploymentId, document.getElementById('protocol').value.trim());
+                }
+            }
+
+            // ── Offline fast-path: skip fetch entirely, queue immediately ──────
+            // navigator.onLine is false when DevTools throttling is set to Offline,
+            // or when the device has no network. Avoids waiting for the 45s AbortController
+            // timeout before showing the queued success screen.
+            if (!navigator.onLine) {
+                clearInterval(tickInterval);
+                SubmissionQueue.enqueue(payload);
+                lockNames();
+                document.getElementById('protocolTimingSection').classList.add('hidden');
+                showSuccessScreen(true);
+                return;
+            }
+
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 45000); // 45s hard timeout
@@ -2654,85 +2924,35 @@
                     participantId = result.participantId;
                 }
 
-                // Persist hormonal stage for post-session Q3 conditional
-                if (timing === 'pre' && addonValues['lafdHormonalStage']) {
-                    sessionStorage.setItem('sfi_hormonal_stage_' + deploymentId, addonValues['lafdHormonalStage']);
-                }
-
-                // Write ANON ID to URL after pre-session so a reload mid-session restores pairing
-                // even in incognito where localStorage is unavailable
-                if (isAnonymousMode && timing === 'pre') {
-                    const newParams = new URLSearchParams(window.location.search);
-                    newParams.set('session', anonId);
-                    window.history.replaceState(null, '', '?' + newParams.toString());
-                    // Persist timing and protocol so a reload mid-session restores fully
-                    sessionStorage.setItem('sfi_post_pending_' + deploymentId, '1');
-                    sessionStorage.setItem('sfi_protocol_' + deploymentId, document.getElementById('protocol').value.trim());
-                }
-
                 // Lock names on submission — identity committed, consistent with timing lock logic
                 lockNames();
-
-                // Hide the form, show the success screen
-                document.getElementById('setupSection').classList.add('hidden');
                 document.getElementById('protocolTimingSection').classList.add('hidden');
-                document.getElementById('consentGate').classList.add('hidden');
-                document.getElementById('surveyBody').classList.add('hidden');
-                document.querySelector('.submit-section').classList.add('hidden');
-                const banner = document.getElementById('welcomeBanner');
-                hideSection(banner);
-                banner.textContent = '';
-                document.getElementById('surveyContainer').classList.remove('hidden'); // ensure outer stays visible
-                document.getElementById('successContainer').classList.remove('hidden');
-
-                // Dynamic success copy based on timing
-                const isPost = timing === 'post';
-                document.getElementById('successHeading').textContent = isPost ? 'Session Complete' : 'Pre-Session Recorded';
-                document.getElementById('successDetails').textContent = isPost
-                    ? 'Post-session check-in recorded. Your data is saved.'
-                    : 'Pre-session check-in recorded. Ready for your session.';
-                document.getElementById('successBtn').textContent = isPost
-                    ? 'Start New Session'
-                    : 'Record Post-Session Check-In';
+                showSuccessScreen(false);
                 
             } catch (error) {
                 clearInterval(tickInterval);
-                console.error('Submit error:', error);
+                console.error('SFI submit error:', error);
+
                 if (error.name === 'AbortError') {
-                    // Request already sent and likely saved — show success to avoid duplicate submissions
-                    document.getElementById('setupSection').classList.add('hidden');
+                    // 45s timeout fired — request was sent but we can't confirm receipt.
+                    // Queue the payload for a guaranteed retry rather than showing optimistic success.
+                    SubmissionQueue.enqueue(payload);
+                    lockNames();
                     document.getElementById('protocolTimingSection').classList.add('hidden');
-                    document.getElementById('consentGate').classList.add('hidden');
-                    document.getElementById('surveyBody').classList.add('hidden');
-                    document.querySelector('.submit-section').classList.add('hidden');
-                    const banner = document.getElementById('welcomeBanner');
-                    hideSection(banner);
-                    banner.textContent = '';
-                    document.getElementById('surveyContainer').classList.remove('hidden');
-                    document.getElementById('successContainer').classList.remove('hidden');
-                    const isPost = timing === 'post';
-                    document.getElementById('successHeading').textContent = isPost ? 'Session Complete' : 'Pre-Session Recorded';
-                    document.getElementById('successDetails').textContent = isPost
-                        ? 'Post-session check-in recorded. Your data is saved.'
-                        : 'Pre-session check-in recorded. Ready for your session.';
-                    document.getElementById('successBtn').textContent = isPost
-                        ? 'Start New Session'
-                        : 'Record Post-Session Check-In';
+                    showSuccessScreen(true);
                 } else {
-                    alert('Error submitting. Please try again.');
-                    unlockTiming();
-                    unlockNames();
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Submit Check-In';
+                    // Network failure before or during send — queue and show saved state.
+                    SubmissionQueue.enqueue(payload);
+                    lockNames();
+                    document.getElementById('protocolTimingSection').classList.add('hidden');
+                    showSuccessScreen(true);
                 }
             }
         }
         
         // ========== ADDON RENDERER ==========
-        // Renders question definitions to HTML. All active addons use the structured
-        // `questions` array format. The `html` string property is retained as an explicit
-        // escape hatch for one-off raw HTML injection — it is not used by any current addon
-        // and should not be used for new ones. Remove if still unused at next major audit.
+        // Renders question definitions to HTML. Addon entries use either legacy `html`
+        // (string, passes through unchanged) or new `questions` (array, rendered here).
         // Supported types: sectionHeader, sectionDescription, vas, singleSelect,
         //                  multiSelect, likert5, nps, conditional
 
@@ -2852,6 +3072,23 @@
                        + '\n    ' + optionalQs.map(renderQuestion).join('\n    ')
                        + '\n</div>';
             }
+            // Split questions at the first optionalBlock:true marker.
+            // Everything before renders normally; everything after renders inside
+            // .optional-block. The marker object itself is not rendered.
+            var qs = addon.questions;
+            var splitIdx = -1;
+            for (var i = 0; i < qs.length; i++) {
+                if (qs[i].optionalBlock) { splitIdx = i; break; }
+            }
+            var requiredQs = splitIdx === -1 ? qs : qs.slice(0, splitIdx);
+            var optionalQs = splitIdx === -1 ? [] : qs.slice(splitIdx + 1);
+            var inner = requiredQs.map(renderQuestion).join('\n');
+            if (optionalQs.length) {
+                inner += '\n<div class="optional-block">'
+                       + '\n    <div class="optional-block-label">Optional</div>'
+                       + '\n    ' + optionalQs.map(renderQuestion).join('\n    ')
+                       + '\n</div>';
+            }
             // timing:'pre' and 'post' addons get a section wrapper, hidden by default,
             // shown/hidden by updateAddonVisibility() when timing is toggled.
             var timingClass = addon.timing === 'pre' ? ' addon-pre-only' : ' addon-post-only';
@@ -2871,385 +3108,6 @@
             return fields;
         }
 
-                // ========== ADDON REGISTRY ==========
-        const ADDON_REGISTRY = {
-            // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Individual addons (Spirit / general) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-            mentalReadiness: {
-                insertAfter: 'vasItem_mentalQuiet', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonMentalReadiness', question: 'How mentally ready do you feel right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
-                ],
-            },
-            soreness: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonSoreness', question: 'Rate your current muscle soreness.', labelLow: 'None', labelHigh: 'Severe' },
-                ],
-            },
-            menstrual: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both',
-                html: `
-                <div class="addon-question-block addon-item" id="addonItem_menstrual">
-                    <div class="likert-question">Rate your current menstrual symptom severity</div>
-                    <div class="addon-ss-group" data-field="addonMenstrual" style="flex-direction:row;gap:8px;">
-                        <button class="addon-ss-btn" data-value="none" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">None</button>
-                        <button class="addon-ss-btn" data-value="mild" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">Mild</button>
-                        <button class="addon-ss-btn" data-value="moderate" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">Moderate</button>
-                        <button class="addon-ss-btn" data-value="severe" style="flex:1;text-align:center;font-size:0.7rem;padding:10px 4px;">Severe</button>
-                    </div>
-                </div>`
-            },
-
-            // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ CAA addons ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-            caaPreUsage: {
-                insertAfter: 'surveyBodyStart',
-                timing: 'pre',
-                required: { pre: ['caaUsageCount', 'caaPromptedBy'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Usage &amp; Motivation' },
-                    { type: 'singleSelect', field: 'caaUsageCount',
-                      blockId: 'caaUsageCountBlock',
-                      skipIfReturning: true,
-                      question: 'How many times have you used the Shiftwave chair before today?',
-                      conditionalTarget: 'caaConditional',
-                      options: [
-                        { value: 'first_time', label: 'This is my first time' },
-                        { value: '1_2',        label: '1–2 times' },
-                        { value: '3_5',        label: '3–5 times' },
-                        { value: '6_10',       label: '6–10 times' },
-                        { value: '10plus',     label: 'More than 10 times' },
-                    ]},
-                    { type: 'singleSelect', field: 'caaPromptedBy',
-                      question: 'What\'s your main reason for using Shiftwave today?',
-                      options: [
-                        { value: 'stress_anxiety', label: 'Stress or anxiety' },
-                        { value: 'relax',          label: 'To relax / unwind' },
-                        { value: 'focus',          label: 'To improve focus or mental clarity' },
-                        { value: 'physical',       label: 'Physical tension or discomfort' },
-                        { value: 'break',          label: 'Wellness or scheduled break' },
-                        { value: 'preventative',   label: 'Preventative / regular routine' },
-                        { value: 'available',      label: 'Saw the chair was available' },
-                        { value: 'recommended',    label: 'Recommended by someone' },
-                        { value: 'curiosity',      label: 'Curiosity / trying it out' },
-                        { value: 'other',          label: 'Other' },
-                    ]},
-                    { type: 'conditional', id: 'caaConditional', questions: [
-                        { type: 'multiSelect', field: 'caaTiming',
-                          question: 'When do you typically use Shiftwave?',
-                          hint: 'Select all that apply',
-                          exclusiveValue: 'no_pattern',
-                          options: [
-                            { value: 'morning',    label: 'Morning (to start the day)' },
-                            { value: 'mid_morning',label: 'Mid-morning (work break)' },
-                            { value: 'lunch',      label: 'Lunch break' },
-                            { value: 'afternoon',  label: 'Afternoon (mid-day slump)' },
-                            { value: 'after_work', label: 'After work (transition home)' },
-                            { value: 'no_pattern', label: 'No regular pattern' },
-                            { value: 'other',      label: 'Other' },
-                        ]},
-                        { type: 'multiSelect', field: 'caaKeepsComing',
-                          question: 'What keeps you coming back to Shiftwave?',
-                          hint: 'Select all that apply',
-                          options: [
-                            { value: 'effective',    label: "It's effective at reducing my stress / anxiety" },
-                            { value: 'convenient',   label: "It's quick and convenient" },
-                            { value: 'fits_routine', label: 'It fits into my work routine easily' },
-                            { value: 'physical',     label: 'I enjoy the physical sensation' },
-                            { value: 'refocus',      label: 'It helps me refocus' },
-                            { value: 'better',       label: "It's better than alternatives I've tried" },
-                            { value: 'routine',      label: "It's become part of my wellness routine" },
-                            { value: 'other',        label: 'Other' },
-                        ]},
-                    ]},
-                ],
-            },
-            caaPost: {
-                insertAfter: 'emojiGridSection',
-                timing: 'post',
-                // Explicit required preserves original behavior (caaReturnReady intentionally optional)
-                required: { post: ['caaAccept1','caaAccept2','caaAccept3','caaAccept4','caaAccept5','caaAccept6',
-                                    'caaUseAgain','caaRecommend','caaFrequency'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Your Experience' },
-                    { type: 'sectionDescription', html: 'Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span>' },
-                    { type: 'likert5', field: 'caaAccept1', question: 'I enjoyed this session' },
-                    { type: 'likert5', field: 'caaAccept2', question: 'The session fit conveniently into my day' },
-                    { type: 'likert5', field: 'caaAccept3', question: 'I understand how Shiftwave is supposed to help' },
-                    { type: 'likert5', field: 'caaAccept4', question: 'This session helped me feel calmer and more relaxed' },
-                    { type: 'likert5', field: 'caaAccept5', question: 'The vibration sensation was comfortable' },
-                    { type: 'likert5', field: 'caaAccept6', question: 'I would use Shiftwave as part of my stress management routine' },
-                    { type: 'sectionHeader', label: 'Workplace', style: 'margin-top:24px;' },
-                    { type: 'nps', field: 'caaReturnReady', question: 'How ready do you feel to return to your work tasks right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
-                    { type: 'nps', field: 'caaUseAgain',    question: 'How likely are you to use Shiftwave again?',                   labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'nps', field: 'caaRecommend',   question: 'How likely are you to recommend Shiftwave to a colleague?',    labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'singleSelect', field: 'caaFrequency', question: 'How often do you see yourself using Shiftwave at the office?', options: [
-                        { value: 'daily',     label: 'Daily' },
-                        { value: 'few_week',  label: 'A few times a week' },
-                        { value: 'weekly',    label: 'Weekly' },
-                        { value: 'few_month', label: 'A few times a month' },
-                        { value: 'rarely',    label: 'Rarely' },
-                    ]},
-                ],
-            },
-            // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ McLaren addons ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
-            mclarenPreSection: {
-                insertAfter: 'surveyBodyStart',
-                timing: 'pre',
-                required: { pre: ['mclRole', 'mclUsageCount', 'mclPrimaryReason', 'mclPromptedBy'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Role &amp; Usage' },
-                    { type: 'singleSelect', field: 'mclRole',
-                      question: 'What is your role?',
-                      options: [
-                        { value: 'driver',     label: 'Driver' },
-                        { value: 'engineer',   label: 'Engineer' },
-                        { value: 'mechanic',   label: 'Mechanic' },
-                        { value: 'strategist', label: 'Strategist' },
-                        { value: 'management', label: 'Team Management' },
-                        { value: 'physio',     label: 'Physiotherapist / Trainer' },
-                        { value: 'other',      label: 'Other' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclUsageCount',
-                      question: 'How many times have you used the Shiftwave chair before today?',
-                      conditionalTarget: 'mclConditional',
-                      options: [
-                        { value: 'first_time', label: 'This is my first time' },
-                        { value: '1_2',        label: '1–2 times' },
-                        { value: '3_5',        label: '3–5 times' },
-                        { value: '6_10',       label: '6–10 times' },
-                        { value: '10plus',     label: 'More than 10 times' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclPrimaryReason',
-                      question: 'What is your PRIMARY reason for using Shiftwave today?',
-                      options: [
-                        { value: 'recovery',    label: 'Recovery after physical work or exertion' },
-                        { value: 'mental_reset',label: 'Mental reset and focus' },
-                        { value: 'pre_perf',    label: 'Pre-performance preparation' },
-                        { value: 'stress',      label: 'To manage stress or tension' },
-                        { value: 'relax',       label: 'To relax / unwind after a long day' },
-                        { value: 'physical',    label: 'To relieve physical tension or soreness' },
-                        { value: 'curiosity',   label: 'Curiosity / trying it out' },
-                        { value: 'other',       label: 'Other' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclPromptedBy',
-                      question: 'What prompted you to use Shiftwave TODAY?',
-                      options: [
-                        { value: 'stressed',     label: 'Feeling stressed or fatigued' },
-                        { value: 'preventative', label: 'Preventative / regular recovery routine' },
-                        { value: 'physical',     label: 'Physical soreness or discomfort' },
-                        { value: 'focus',        label: 'Trouble focusing or mentally preparing' },
-                        { value: 'downtime',     label: 'Scheduled downtime' },
-                        { value: 'available',    label: 'Saw the chair was available' },
-                        { value: 'recommended',  label: 'Recommended by someone' },
-                        { value: 'other',        label: 'Other' },
-                    ]},
-                    { type: 'conditional', id: 'mclConditional', questions: [
-                        { type: 'multiSelect', field: 'mclTiming',
-                          question: 'When do you typically use Shiftwave?',
-                          hint: 'Select all that apply',
-                          exclusiveValue: 'no_pattern',
-                          options: [
-                            { value: 'before',      label: 'Before work / sessions begin' },
-                            { value: 'during',      label: 'During breaks between tasks' },
-                            { value: 'after',       label: 'After work / sessions (wind down)' },
-                            { value: 'when_stressed',label: "When I'm feeling stressed or fatigued" },
-                            { value: 'routine',     label: 'As part of a regular routine' },
-                            { value: 'no_pattern',  label: 'No regular pattern' },
-                            { value: 'other',       label: 'Other' },
-                        ]},
-                        { type: 'multiSelect', field: 'mclKeepsComing',
-                          question: 'What keeps you coming back to Shiftwave?',
-                          options: [
-                            { value: 'effective',  label: "It's effective at reducing my stress / tension" },
-                            { value: 'convenient', label: "It's quick and convenient" },
-                            { value: 'fits',       label: 'It fits into my routine easily' },
-                            { value: 'physical',   label: 'I enjoy the physical sensation' },
-                            { value: 'refocus',    label: 'It helps me refocus and mentally reset' },
-                            { value: 'better',     label: "It's better than other recovery tools I've tried" },
-                            { value: 'routine',    label: "It's become part of my performance / recovery routine" },
-                            { value: 'other',      label: 'Other' },
-                        ]},
-                    ]},
-                ],
-            },
-            mclarenSoreness: {
-                insertAfter: 'vasItem_bodyConnection', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonMclSoreness', question: 'How sore does your body feel right now?', labelLow: 'Not Sore', labelHigh: 'Extremely Sore' },
-                ],
-            },
-            mclarenPerfReadiness: {
-                insertAfter: 'vasItem_alertness', timing: 'both',
-                questions: [
-                    { type: 'vas', field: 'addonMclPerfReadiness', question: 'How ready do you feel to perform your job right now?', labelLow: 'Not Ready', labelHigh: 'Fully Ready' },
-                ],
-            },
-            mclarenPost: {
-                insertAfter: 'emojiGridSection',
-                timing: 'post',
-                // Explicit required preserves original behavior
-                required: { post: ['mclAccept1','mclAccept2','mclAccept3','mclAccept4','mclAccept5','mclAccept6',
-                                    'mclUseAgain','mclRecommend','mclFrequency','mclWouldHelp','mclComparison'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'Your Experience' },
-                    { type: 'sectionDescription', html: 'Rate each statement about this session.<br><span style="font-size:0.8em;color:#888;">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span>' },
-                    { type: 'likert5', field: 'mclAccept1', question: 'I enjoyed this session' },
-                    { type: 'likert5', field: 'mclAccept2', question: 'The session fit conveniently into my schedule' },
-                    { type: 'likert5', field: 'mclAccept3', question: 'I understand how Shiftwave is supposed to help' },
-                    { type: 'likert5', field: 'mclAccept4', question: 'This session helped me feel calmer and more relaxed' },
-                    { type: 'likert5', field: 'mclAccept5', question: 'The vibration sensation was comfortable' },
-                    { type: 'likert5', field: 'mclAccept6', question: 'I would use Shiftwave as part of my recovery and performance routine' },
-                    { type: 'sectionHeader', label: 'Performance &amp; Recovery', style: 'margin-top:24px;' },
-                    { type: 'nps', field: 'mclUseAgain',  question: 'How likely are you to use Shiftwave again?',                           labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'nps', field: 'mclRecommend', question: 'How likely are you to recommend Shiftwave to teammates or colleagues?', labelLow: 'Not at all likely', labelHigh: 'Extremely likely' },
-                    { type: 'singleSelect', field: 'mclFrequency', question: 'How often do you see yourself using Shiftwave?', options: [
-                        { value: 'daily',        label: 'Daily' },
-                        { value: 'few_week',     label: 'A few times a week' },
-                        { value: 'weekly',       label: 'Weekly' },
-                        { value: 'race_weekends',label: 'Race weekends only' },
-                        { value: 'few_month',    label: 'A few times a month' },
-                        { value: 'rarely',       label: 'Rarely' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclWouldHelp', question: 'Would having Shiftwave available help improve your work or performance?', options: [
-                        { value: 'def_not',  label: 'Definitely not' },
-                        { value: 'prob_not', label: 'Probably not' },
-                        { value: 'not_sure', label: 'Not sure' },
-                        { value: 'prob_yes', label: 'Probably yes' },
-                        { value: 'def_yes',  label: 'Definitely yes' },
-                    ]},
-                    { type: 'singleSelect', field: 'mclComparison', question: 'How does Shiftwave compare to other recovery or mental preparation tools you use?', options: [
-                        { value: 'much_better',     label: 'Much better' },
-                        { value: 'somewhat_better', label: 'Somewhat better' },
-                        { value: 'same',            label: 'About the same' },
-                        { value: 'somewhat_worse',  label: 'Somewhat worse' },
-                        { value: 'much_worse',      label: 'Much worse' },
-                        { value: 'no_other_tools',  label: "I don't use other tools" },
-                    ]},
-                ],
-            },
-
-            // ── LAFD Women's Wellness Workshop ──────────────────────────────
-            lafdPre: {
-                insertAfter: 'surveyBodyStart',
-                timing: 'pre',
-                required: { pre: ['lafdRole', 'lafdShiftTiming', 'lafdAgeBracket'] },
-                questions: [
-                    { type: 'sectionHeader', label: 'About You' },
-                    { type: 'singleSelect', field: 'lafdRole',
-                      question: 'What best describes your role?',
-                      options: [
-                        { value: 'firefighter',   label: 'Firefighter' },
-                        { value: 'fire_engineer',  label: 'Fire Engineer' },
-                        { value: 'captain',        label: 'Fire Captain or Company Officer' },
-                        { value: 'chief',          label: 'Battalion Chief or above' },
-                        { value: 'paramedic_emt',  label: 'Paramedic or EMT' },
-                        { value: 'prevention',     label: 'Fire Prevention or Inspector' },
-                        { value: 'dispatcher',     label: 'Dispatcher or Communications' },
-                        { value: 'admin',          label: 'Administrative or civilian staff' },
-                        { value: 'other',          label: 'Other' },
-                    ]},
-                    { type: 'singleSelect', field: 'lafdShiftTiming',
-                      question: 'How long since your last work shift ended?',
-                      options: [
-                        { value: 'on_shift',        label: 'Currently on shift' },
-                        { value: 'under_24h',       label: 'Less than 24 hours' },
-                        { value: '1_2_days',        label: '1\u20132 days' },
-                        { value: '3_plus_days',     label: '3 or more days' },
-                        { value: 'standard_hours',  label: 'I work standard business hours' },
-                    ]},
-                    { type: 'singleSelect', field: 'lafdAgeBracket',
-                      question: 'What is your age?',
-                      options: [
-                        { value: 'under_30', label: 'Under 30' },
-                        { value: '30_39',    label: '30\u201339' },
-                        { value: '40_49',    label: '40\u201349' },
-                        { value: '50_59',    label: '50\u201359' },
-                        { value: '60_plus',  label: '60 or older' },
-                    ]},
-                    // optionalBlock:true marks the split point — everything after renders
-                    // inside .optional-block with context paragraph above.
-                    { optionalBlock: true },
-                    { type: 'singleSelect', field: 'lafdHormonalStage',
-                      required: false,
-                      question: 'Which best describes your current hormonal life stage?',
-                      options: [
-                        { value: 'regular_cycles',  label: 'Regular menstrual cycles' },
-                        { value: 'perimenopause',   label: 'Perimenopause (irregular or changing cycles)' },
-                        { value: 'post_menopause',  label: 'Post-menopause (no longer have periods)' },
-                        { value: 'pregnant_pp',     label: 'Pregnant or postpartum' },
-                        { value: 'prefer_not',      label: 'Prefer not to say' },
-                    ]},
-                    { type: 'singleSelect', field: 'lafdCyclePhase',
-                      required: false,
-                      question: 'Roughly where are you in your cycle right now?',
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'perimenopause'] },
-                      options: [
-                        { value: 'menstrual',   label: 'Menstrual (period)' },
-                        { value: 'follicular',  label: 'Follicular (post-period, pre-ovulation)' },
-                        { value: 'ovulation',   label: 'Around ovulation' },
-                        { value: 'luteal',      label: 'Luteal (pre-period)' },
-                        { value: 'not_sure',    label: 'Not sure' },
-                    ]},
-                    // P5a — menstrual symptoms (regular cycles and perimenopause)
-                    { type: 'singleSelect', field: 'lafdMenstrualSymptoms',
-                      required: false,
-                      question: 'Rate the severity of any menstrual symptoms you\'re experiencing right now.',
-                      showIf: { field: 'lafdHormonalStage', value: ['regular_cycles', 'perimenopause'] },
-                      options: [
-                        { value: 'none',     label: 'None' },
-                        { value: 'mild',     label: 'Mild' },
-                        { value: 'moderate', label: 'Moderate' },
-                        { value: 'severe',   label: 'Severe' },
-                    ]},
-                    // P5b — perimenopausal/menopausal symptoms (perimenopause and post-menopause)
-                    // Perimenopausal women intentionally see both P5a and P5b.
-                    { type: 'singleSelect', field: 'lafdMenopauseSymptoms',
-                      required: false,
-                      question: 'Rate the severity of any perimenopausal or menopausal symptoms you\'re experiencing right now.',
-                      showIf: { field: 'lafdHormonalStage', value: ['perimenopause', 'post_menopause'] },
-                      options: [
-                        { value: 'none',     label: 'None' },
-                        { value: 'mild',     label: 'Mild' },
-                        { value: 'moderate', label: 'Moderate' },
-                        { value: 'severe',   label: 'Severe' },
-                    ]},
-                ],
-            },
-            lafdPost: {
-                insertAfter: 'emojiGridSection',
-                timing: 'post',
-                questions: [
-                    { type: 'vas', field: 'lafdSessionUtility',
-                      question: 'How well did this session meet your needs today?',
-                      labelLow: 'Not at all', labelHigh: 'Completely' },
-                    { type: 'multiSelect', field: 'lafdUsageContext',
-                      question: 'Where could you see yourself using Shiftwave?',
-                      hint: 'Select all that apply',
-                      exclusiveValues: ['not_work', 'not_sure'],
-                      options: [
-                        { value: 'after_shift',   label: 'After a shift, for decompression and recovery' },
-                        { value: 'before_shift',  label: 'Before a shift, to get mentally ready' },
-                        { value: 'firehouse',     label: 'During downtime at the firehouse' },
-                        { value: 'home_wellness', label: 'At home, for personal wellness' },
-                        { value: 'not_work',      label: "I wouldn't use it in a work context" },
-                        { value: 'not_sure',      label: "I'm not sure yet" },
-                    ]},
-                    // Q3: shown only if P3 (lafdHormonalStage) was answered and not 'prefer_not'
-                    { type: 'singleSelect', field: 'lafdHormonalAttribution',
-                      required: false,
-                      question: 'Did today\'s session help ease any symptoms related to your hormonal health?',
-                      showIfAnswered: { field: 'lafdHormonalStage', exclude: ['prefer_not'] },
-                      options: [
-                        { value: 'yes_noticeably', label: 'Yes, noticeably' },
-                        { value: 'somewhat',       label: 'Somewhat' },
-                        { value: 'not_really',     label: 'Not that I could tell' },
-                        { value: 'no_symptoms',    label: 'I wasn\'t experiencing symptoms today' },
-                    ]},
-                ],
-            },
-        };
-
-        // REGISTRY END ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â injection below
 
         // ========== ADDON INJECTION ==========
         function wireAddonElement(el) {
@@ -3398,6 +3256,12 @@
         // and shows/hides based on current addonValues.
         function updateShowIf() {
             document.querySelectorAll('.addon-showif').forEach(function(el) {
+                // Skip if this showIf wrapper is inside a timing section that's currently hidden
+                // (e.g. pre-section elements during post-session). Evaluating them can cause
+                // stale-clearing to delete addonValues entries that post-session still needs.
+                const timingParent = el.closest('.addon-pre-only, .addon-post-only');
+                if (timingParent && timingParent.classList.contains('hidden')) return;
+
                 var field = el.dataset.showifField;
                 var trigger = JSON.parse(el.dataset.showifValue);
                 var current = addonValues[field];
@@ -3503,31 +3367,6 @@
         });
 
         // Addon engage-sliders (return readiness etc.)
-        // mousedown/touchstart: engage immediately so clicking at default value (50) still shows a number
-        document.getElementById('surveyContainer').addEventListener('mousedown', function(e) {
-            if (e.target.classList.contains('addon-engage-slider')) {
-                const field = e.target.dataset.field;
-                if (field) {
-                    addonValues[field] = parseInt(e.target.value);
-                    const display = document.getElementById(e.target.id + 'Value');
-                    if (display) display.textContent = e.target.value;
-                    e.target.closest('.addon-item') && e.target.closest('.addon-item').classList.add('engaged');
-                    updateProgress();
-                }
-            }
-        });
-        document.getElementById('surveyContainer').addEventListener('touchstart', function(e) {
-            if (e.target.classList.contains('addon-engage-slider')) {
-                const field = e.target.dataset.field;
-                if (field) {
-                    addonValues[field] = parseInt(e.target.value);
-                    const display = document.getElementById(e.target.id + 'Value');
-                    if (display) display.textContent = e.target.value;
-                    e.target.closest('.addon-item') && e.target.closest('.addon-item').classList.add('engaged');
-                    updateProgress();
-                }
-            }
-        }, { passive: true });
         document.getElementById('surveyContainer').addEventListener('input', function(e) {
             if (e.target.classList.contains('addon-engage-slider')) {
                 const field = e.target.dataset.field;
@@ -3544,6 +3383,23 @@
                 if (field) addonValues[field] = e.target.value;
             }
         });
+
+        // ========== FEMALE HEALTH BLOCK RESET ==========
+        function resetCoreFemaleBlock() {
+            const optIn = document.getElementById('coreFemaleOptIn');
+            if (optIn) optIn.style.display = '';
+            const questions = document.getElementById('coreFemaleQuestions');
+            if (questions) hideSection(questions);
+            const preBlock = document.getElementById('coreFemalePreBlock');
+            if (preBlock) {
+                preBlock.querySelectorAll('.addon-ss-btn.selected').forEach(b => b.classList.remove('selected'));
+                preBlock.querySelectorAll('.addon-showif').forEach(el => el.classList.add('hidden'));
+            }
+            delete addonValues['core_hormonal_stage'];
+            delete addonValues['core_cycle_phase'];
+            delete addonValues['core_symptom_severity'];
+            delete addonValues['core_hormonal_change'];
+        }
 
         // ========== RESET ==========
         function resetForm() {
@@ -3570,8 +3426,14 @@
                 }
             }
             // NOTE: sessionId, participantId, participantStatus, and consent are intentionally NOT cleared.
-            // They must persist across preÃ¢â€ â€™post within the same session.
-            
+            // They must persist across pre→post within the same session.
+
+            // Clear queued state from success screen (in case previous submission was queued)
+            const successMsg = document.getElementById('successMessage');
+            if (successMsg) successMsg.classList.remove('queued');
+            const queuedNoteEl = document.getElementById('queuedNote');
+            if (queuedNoteEl) queuedNoteEl.classList.add('hidden');
+
             // Clear welcome banner — it belongs to the lookup step, not the active survey
             const bannerEl = document.getElementById('welcomeBanner');
             hideSection(bannerEl);
@@ -3583,6 +3445,12 @@
             const storedHormonalStage = sessionStorage.getItem('sfi_hormonal_stage_' + deploymentId);
             if (storedHormonalStage) {
                 addonValues['lafdHormonalStage'] = storedHormonalStage;
+                updateShowIf();
+            }
+            // For core female health post: re-seed core_hormonal_stage so attribution showIfAnswered works
+            const storedCoreHormonalStage = sessionStorage.getItem('sfi_core_hormonal_stage_' + deploymentId);
+            if (storedCoreHormonalStage) {
+                addonValues['core_hormonal_stage'] = storedCoreHormonalStage;
                 updateShowIf();
             }
             document.querySelectorAll('.addon-ss-btn.selected, .addon-nps-btn.selected, .addon-l5-btn.selected')
@@ -3604,7 +3472,6 @@
                     }
                 });
             });
-
             formData = {
                 valence: null, arousal: null,
                 bodyTension: 50, bodyTensionEngaged: false,
@@ -3656,7 +3523,25 @@
             
             // Always hide demographics on reset — already captured on first visit
             hideSection(document.getElementById('demographicsRow'));
-            
+            // Hide female health blocks — updateCoreBlock (called by setTiming above) re-shows as needed.
+            // Do NOT call resetCoreFemaleBlock() here — addonValues was already cleared above, and
+            // core_hormonal_stage was just restored from sessionStorage for the attribution showIfAnswered gate.
+            // Calling resetCoreFemaleBlock() would delete it, hiding the attribution question after every click.
+            hideSection(document.getElementById('coreFemalePreBlock'));
+            hideSection(document.getElementById('coreFemalePostBlock'));
+            // Visual-only cleanup: deselect buttons and hide showif wrappers inside both blocks
+            ['coreFemalePreBlock','coreFemalePostBlock'].forEach(function(id) {
+                const bl = document.getElementById(id);
+                if (!bl) return;
+                bl.querySelectorAll('.addon-ss-btn.selected').forEach(b => b.classList.remove('selected'));
+                bl.querySelectorAll('.addon-showif').forEach(el => el.classList.add('hidden'));
+            });
+            // Reset opt-in gate so it re-appears fresh on next pre-session
+            const coreFemaleOptIn = document.getElementById('coreFemaleOptIn');
+            if (coreFemaleOptIn) coreFemaleOptIn.style.display = '';
+            const coreFemaleQs = document.getElementById('coreFemaleQuestions');
+            if (coreFemaleQs) hideSection(coreFemaleQs);
+
             // Show the form sections (name + protocol are intentionally preserved)
             if (!isAnonymousMode) document.getElementById('setupSection').classList.remove('hidden');
             revealSection(document.getElementById('protocolTimingSection'), 0);
@@ -3791,87 +3676,63 @@
         firstNameInput.addEventListener('blur', triggerLookupIfReady);
         lastNameInput.addEventListener('blur', triggerLookupIfReady);
 
-        // ── Anonymous mode init ──────────────────────────────────────────────
-        // Hide name fields entirely, set ANON ID, go straight to consent gate.
-        // If session param is in URL, query backend to check what timings already
-        // exist — prevents a completed pair being overwritten if Dani reloads
-        // after post submits instead of tapping Start New Session.
-        if (isAnonymousMode) {
-            document.getElementById('setupSection').classList.add('hidden');
-            participantId = anonId;
-            participantStatus = 'new';
-            const postPending = sessionStorage.getItem('sfi_post_pending_' + deploymentId);
-            const restoredFromSession = urlParams.get('session') && urlParams.get('session').startsWith('ANON-');
+        // Sex listener for progress tracking
+        // ========== CORE FEMALE HEALTH BLOCK ==========
+        // Two sections: coreFemalePreBlock (opt-in + hormonal questions, pre only)
+        //               coreFemalePostBlock (attribution question, post only)
+        // Visibility driven by updateCoreBlock() — called from setTiming, showWelcomeBack,
+        // acceptConsent, and the sex change listener.
+        // suppressFemaleHealthBlock preset flag removes both blocks entirely.
 
-            if (restoredFromSession) {
-                // Query backend to check what's already saved for this ANON ID
-                (async function() {
-                    let timings = [];
-                    try {
-                        const res = await fetch(SUPABASE_URL, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                            },
-                            body: JSON.stringify({ action: 'checkSession', participantName: anonId, deploymentId })
-                        });
-                        const result = await res.json();
-                        timings = result.timings || [];
-                    } catch (err) {
-                        // Network failure — fall back to sessionStorage flag
-                        console.warn('checkSession failed, falling back to sessionStorage', err);
-                    }
+        function getEffectiveSex() {
+            // Returning participants: sex is in the key table variable
+            if (participantStatus === 'returning') return participantSex;
+            return document.getElementById('participantSex').value;
+        }
 
-                    const hasPost = timings.includes('post');
-                    const hasPre  = timings.includes('pre');
-
-                    if (hasPost) {
-                        // Both pre and post already saved — this session is complete.
-                        // Clear all state so Dani doesn't accidentally overwrite it.
-                        sessionStorage.removeItem('sfi_post_pending_' + deploymentId);
-                        localStorage.removeItem('sfi_anon_id_' + deploymentId);
-                        const cleanParams = new URLSearchParams(window.location.search);
-                        cleanParams.delete('session');
-                        const cleanSearch = cleanParams.toString();
-                        window.history.replaceState(null, '', cleanSearch ? '?' + cleanSearch : window.location.pathname);
-                        // Generate a fresh ID for whoever comes next
-                        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                        anonId = 'ANON-' + Array.from({length: 6}, () =>
-                            chars[Math.floor(Math.random() * chars.length)]).join('');
-                        localStorage.setItem('sfi_anon_id_' + deploymentId, anonId);
-                        participantId = anonId;
-                        showConsentGate('pre');
-                    } else if (hasPre || postPending) {
-                        // Pre saved, no post yet — restore to post-timing, bypass consent
-                        consent = true;
-                        document.getElementById('surveyBody').classList.remove('consent-blocked');
-                        // Restore protocol selection
-                        const storedProtocol = sessionStorage.getItem('sfi_protocol_' + deploymentId);
-                        if (storedProtocol) {
-                            document.getElementById('protocol').value = storedProtocol;
-                            updateProgress();
-                        }
-                        // Restore hormonal stage so Q3 conditional shows correctly on post
-                        const storedStage = sessionStorage.getItem('sfi_hormonal_stage_' + deploymentId);
-                        if (storedStage) {
-                            addonValues['lafdHormonalStage'] = storedStage;
-                            updateShowIf();
-                        }
-                        setTiming('post');
-                        revealSection(document.getElementById('protocolTimingSection'), 0);
-                    } else {
-                        // Nothing saved yet — start fresh at pre
-                        showConsentGate('pre');
-                    }
-                })();
-            } else {
-                showConsentGate(timing);
+        function updateCoreBlock() {
+            if (activePreset.suppressFemaleHealthBlock) return;
+            const isFemale = getEffectiveSex() === 'female';
+            const preBlock  = document.getElementById('coreFemalePreBlock');
+            const postBlock = document.getElementById('coreFemalePostBlock');
+            if (preBlock) {
+                if (isFemale && timing === 'pre') {
+                    revealSection(preBlock, 150);
+                } else {
+                    hideSection(preBlock);
+                    if (!isFemale) resetCoreFemaleBlock();
+                }
+            }
+            if (postBlock) {
+                if (isFemale && timing === 'post') {
+                    revealSection(postBlock, 150);
+                    updateShowIf(); // trigger showIfAnswered gate for attribution question
+                } else {
+                    hideSection(postBlock);
+                }
             }
         }
 
-        // Sex listener for progress tracking
-        document.getElementById('participantSex').addEventListener('change', updateProgress);
+        if (activePreset.suppressFemaleHealthBlock) {
+            const preBlock  = document.getElementById('coreFemalePreBlock');
+            const postBlock = document.getElementById('coreFemalePostBlock');
+            if (preBlock)  preBlock.remove();
+            if (postBlock) postBlock.remove();
+            document.getElementById('participantSex').addEventListener('change', updateProgress);
+        } else {
+            document.getElementById('participantSex').addEventListener('change', function() {
+                updateProgress();
+                updateCoreBlock();
+            });
+            document.getElementById('coreFemaleYes').addEventListener('click', function() {
+                document.getElementById('coreFemaleOptIn').style.display = 'none';
+                revealSection(document.getElementById('coreFemaleQuestions'), 0);
+            });
+            document.getElementById('coreFemaleSkip').addEventListener('click', function() {
+                hideSection(document.getElementById('coreFemalePreBlock'));
+                resetCoreFemaleBlock();
+            });
+        }
 
         // ========== PROTOCOL SEARCHABLE DROPDOWN ==========
         const PROTOCOLS = [
@@ -3907,12 +3768,6 @@
         const protocolInput = document.getElementById('protocol');
         const protocolList = document.getElementById('protocolList');
         let protocolHighlightIndex = -1;
-
-        // Pre-fill protocol if preset specifies a default
-        if (activePreset.defaultProtocol) {
-            protocolInput.value = activePreset.defaultProtocol;
-            updateProgress();
-        }
 
         function renderProtocolList(query) {
             const q = query.toLowerCase();
@@ -3990,6 +3845,96 @@
 
         updateProgress();
         updateAddonVisibility();
+
+        // Pre-fill protocol if preset specifies a default
+        if (activePreset.defaultProtocol) {
+            protocolInput.value = activePreset.defaultProtocol;
+            updateProgress();
+        }
+
+        // ── Anonymous mode init ──────────────────────────────────────────────
+        // Hide name fields entirely, set ANON ID, go straight to consent gate.
+        // If session param is in URL, query backend to check what timings already
+        // exist — prevents a completed pair being overwritten if Dani reloads
+        // after post submits instead of tapping Start New Session.
+        if (isAnonymousMode) {
+            document.getElementById('setupSection').classList.add('hidden');
+            participantId = anonId;
+            participantStatus = 'new';
+            const postPending = sessionStorage.getItem('sfi_post_pending_' + deploymentId);
+            const restoredFromSession = urlParams.get('session') && urlParams.get('session').startsWith('ANON-');
+
+            if (restoredFromSession) {
+                // Query backend to check what's already saved for this ANON ID
+                (async function() {
+                    let timings = [];
+                    try {
+                        const res = await fetch(SUPABASE_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                            },
+                            body: JSON.stringify({ action: 'checkSession', participantName: anonId, deploymentId })
+                        });
+                        const result = await res.json();
+                        timings = result.timings || [];
+                    } catch (err) {
+                        // Network failure — fall back to sessionStorage flag
+                        console.warn('checkSession failed, falling back to sessionStorage', err);
+                    }
+
+                    const hasPost = timings.includes('post');
+                    const hasPre  = timings.includes('pre');
+
+                    if (hasPost) {
+                        // Both pre and post already saved — this session is complete.
+                        // Clear all state so Dani doesn't accidentally overwrite it.
+                        sessionStorage.removeItem('sfi_post_pending_' + deploymentId);
+                        localStorage.removeItem('sfi_anon_id_' + deploymentId);
+                        const cleanParams = new URLSearchParams(window.location.search);
+                        cleanParams.delete('session');
+                        const cleanSearch = cleanParams.toString();
+                        window.history.replaceState(null, '', cleanSearch ? '?' + cleanSearch : window.location.pathname);
+                        // Generate a fresh ID for whoever comes next
+                        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                        anonId = 'ANON-' + Array.from({length: 6}, () =>
+                            chars[Math.floor(Math.random() * chars.length)]).join('');
+                        localStorage.setItem('sfi_anon_id_' + deploymentId, anonId);
+                        participantId = anonId;
+                        showConsentGate('pre');
+                    } else if (hasPre || postPending) {
+                        // Pre saved, no post yet — restore to post-timing, bypass consent
+                        consent = true;
+                        document.getElementById('surveyBody').classList.remove('consent-blocked');
+                        // Restore protocol selection
+                        const storedProtocol = sessionStorage.getItem('sfi_protocol_' + deploymentId);
+                        if (storedProtocol) {
+                            document.getElementById('protocol').value = storedProtocol;
+                            updateProgress();
+                        }
+                        // Restore hormonal stage so Q3 conditional shows correctly on post
+                        const storedStage = sessionStorage.getItem('sfi_hormonal_stage_' + deploymentId);
+                        if (storedStage) {
+                            addonValues['lafdHormonalStage'] = storedStage;
+                            updateShowIf();
+                        }
+                        setTiming('post');
+                        revealSection(document.getElementById('protocolTimingSection'), 0);
+
+                        // Queue-aware: also check local queue for queued pre (offline scenario)
+                        if (!hasPre && SubmissionQueue.hasPendingPreInQueue(anonId)) {
+                            console.log('SFI: Pre found in offline queue — restoring to post');
+                        }
+                    } else {
+                        // Nothing saved yet — start fresh at pre
+                        showConsentGate('pre');
+                    }
+                })();
+            } else {
+                showConsentGate(timing);
+            }
+        }
         
         // ========== TUTORIAL MODAL ==========
         function openTutorial() {
@@ -4028,7 +3973,9 @@
         window.closeTutorial = closeTutorial;
         window.updateConsentBtn = updateConsentBtn;
         window.triggerLookupIfReady = triggerLookupIfReady;
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', initSFI);
     </script>
 
     <!-- EmojiGrid Tutorial Modal -->
