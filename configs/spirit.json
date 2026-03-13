@@ -1,0 +1,53 @@
+{
+  "preset": {
+    "displayName": "Washington Spirit",
+    "addons": [
+      "soreness",
+      "menstrual"
+    ]
+  },
+  "addons": {
+    "soreness": {
+      "insertAfter": "vasItem_bodyConnection",
+      "timing": "both",
+      "questions": [
+        {
+          "type": "vas",
+          "field": "addonSoreness",
+          "question": "Rate your current muscle soreness.",
+          "labelLow": "None",
+          "labelHigh": "Severe"
+        }
+      ]
+    },
+    "menstrual": {
+      "insertAfter": "vasItem_bodyConnection",
+      "timing": "both",
+      "questions": [
+        {
+          "type": "singleSelect",
+          "field": "addonMenstrual",
+          "question": "Rate your current menstrual symptom severity.",
+          "options": [
+            {
+              "value": "none",
+              "label": "None"
+            },
+            {
+              "value": "mild",
+              "label": "Mild"
+            },
+            {
+              "value": "moderate",
+              "label": "Moderate"
+            },
+            {
+              "value": "severe",
+              "label": "Severe"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
