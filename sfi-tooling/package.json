@@ -1,0 +1,23 @@
+{
+  "name": "sfi-tooling",
+  "version": "1.0.0",
+  "description": "Validation and testing tooling for the Shiftwave Field Instrument",
+  "private": true,
+  "scripts": {
+    "validate": "node scripts/validate-config.js",
+    "validate:one": "node scripts/validate-config.js",
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:configs": "npx playwright test -g 'Config loads'",
+    "test:submit": "npx playwright test -g 'Submission integrity'",
+    "test:offline": "npx playwright test -g 'Offline'",
+    "precommit": "node scripts/validate-config.js"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}
