@@ -3049,10 +3049,14 @@
 
         function renderAddonHTML(addonKey, addon) {
             if (addon.html) return addon.html; // escape hatch: raw HTML string, not used by any current addon
-            // timing:'both' addons (e.g. atomic VAS sliders) render without a wrapper —
-            // they sit inline with the SSS VAS items and are always visible.
+            // All addons — including timing:'both' — render with an outer wrapper div so that
+            // the injection code's firstChild reliably captures the entire block.
+            // Previously timing:'both' rendered flat (no wrapper), which caused only the first
+            // child element (typically a sectionHeader) to be injected; the rest were silently dropped.
             if (addon.timing === 'both') {
-                return addon.questions.map(renderQuestion).join('\n');
+                return '<div class="section addon-both">\n'
+                     + addon.questions.map(renderQuestion).join('\n')
+                     + '\n</div>';
             }
             // Split questions at the first optionalBlock:true marker.
             // Everything before renders normally; everything after renders inside
@@ -3752,7 +3756,7 @@
             'Das Optimizer','Das Optimizer Express','Day At The Beach','Deep Love',
             'Disco Nap','Disco Nap BioDrive','Disco Nap Express','Emerald Wolf','Evolver',
             'Extended Relief','For Kids (6-9)','For Kids (9-12)','Get In The Zone',
-            'Guided Alignment','Hormone Resilience','HRV BioDrive Intro','Inner Performance 1',
+            'Guided Alignment','Cognitive Clarity Reset','HRV BioDrive Intro','Inner Performance 1',
             'Inner Performance 1: Mastering the Foundation',
             'Inner Performance 2: The Samurai Mind',
             'Inner Performance 3: The Power of Letting Go',
