@@ -1,0 +1,333 @@
+{
+  "preset": {
+    "displayName": "LAFD Women's Wellness Workshop",
+    "addons": [
+      "lafdPre",
+      "lafdPost"
+    ],
+    "anonymousMode": true,
+    "defaultProtocol": "Hormone Resilience",
+    "suppressFemaleHealthBlock": true
+  },
+  "addons": {
+    "lafdPre": {
+      "insertAfter": "surveyBodyStart",
+      "timing": "pre",
+      "required": {
+        "pre": [
+          "lafdRole",
+          "lafdShiftTiming",
+          "lafdAgeBracket"
+        ]
+      },
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "About You"
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdRole",
+          "question": "What best describes your role?",
+          "options": [
+            {
+              "value": "firefighter",
+              "label": "Firefighter"
+            },
+            {
+              "value": "fire_engineer",
+              "label": "Fire Engineer"
+            },
+            {
+              "value": "captain",
+              "label": "Fire Captain or Company Officer"
+            },
+            {
+              "value": "chief",
+              "label": "Battalion Chief or above"
+            },
+            {
+              "value": "paramedic_emt",
+              "label": "Paramedic or EMT"
+            },
+            {
+              "value": "prevention",
+              "label": "Fire Prevention or Inspector"
+            },
+            {
+              "value": "dispatcher",
+              "label": "Dispatcher or Communications"
+            },
+            {
+              "value": "admin",
+              "label": "Administrative or civilian staff"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdShiftTiming",
+          "question": "How long since your last work shift ended?",
+          "options": [
+            {
+              "value": "on_shift",
+              "label": "Currently on shift"
+            },
+            {
+              "value": "under_24h",
+              "label": "Less than 24 hours"
+            },
+            {
+              "value": "1_2_days",
+              "label": "1–2 days"
+            },
+            {
+              "value": "3_plus_days",
+              "label": "3 or more days"
+            },
+            {
+              "value": "standard_hours",
+              "label": "I work standard business hours"
+            }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdAgeBracket",
+          "question": "What is your age?",
+          "options": [
+            {
+              "value": "under_30",
+              "label": "Under 30"
+            },
+            {
+              "value": "30_39",
+              "label": "30–39"
+            },
+            {
+              "value": "40_49",
+              "label": "40–49"
+            },
+            {
+              "value": "50_59",
+              "label": "50–59"
+            },
+            {
+              "value": "60_plus",
+              "label": "60 or older"
+            }
+          ]
+        },
+        {
+          "optionalBlock": true
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdHormonalStage",
+          "required": false,
+          "question": "Which best describes your current hormonal life stage?",
+          "options": [
+            {
+              "value": "regular_cycles",
+              "label": "Regular menstrual cycles"
+            },
+            {
+              "value": "perimenopause",
+              "label": "Perimenopause (irregular or changing cycles)"
+            },
+            {
+              "value": "post_menopause",
+              "label": "Post-menopause (no longer have periods)"
+            },
+            {
+              "value": "pregnant_pp",
+              "label": "Pregnant or postpartum"
+            },
+            {
+              "value": "prefer_not",
+              "label": "Prefer not to say"
+            }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdCyclePhase",
+          "required": false,
+          "question": "Roughly where are you in your cycle right now?",
+          "showIf": {
+            "field": "lafdHormonalStage",
+            "value": [
+              "regular_cycles"
+            ]
+          },
+          "options": [
+            {
+              "value": "menstrual",
+              "label": "Menstrual (period)"
+            },
+            {
+              "value": "follicular",
+              "label": "Follicular (post-period, pre-ovulation)"
+            },
+            {
+              "value": "ovulation",
+              "label": "Around ovulation"
+            },
+            {
+              "value": "luteal",
+              "label": "Luteal (pre-period)"
+            },
+            {
+              "value": "not_sure",
+              "label": "Not sure"
+            }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdSymptomSeverity",
+          "required": false,
+          "question": "Rate the severity of any menstrual symptoms you're experiencing right now.",
+          "showIf": {
+            "field": "lafdHormonalStage",
+            "value": [
+              "regular_cycles"
+            ]
+          },
+          "options": [
+            {
+              "value": "none",
+              "label": "None"
+            },
+            {
+              "value": "mild",
+              "label": "Mild"
+            },
+            {
+              "value": "moderate",
+              "label": "Moderate"
+            },
+            {
+              "value": "severe",
+              "label": "Severe"
+            }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdMenopauseSymptoms",
+          "required": false,
+          "question": "Rate the severity of any perimenopausal or menopausal symptoms you're experiencing right now.",
+          "showIf": {
+            "field": "lafdHormonalStage",
+            "value": [
+              "perimenopause",
+              "post_menopause"
+            ]
+          },
+          "options": [
+            {
+              "value": "none",
+              "label": "None"
+            },
+            {
+              "value": "mild",
+              "label": "Mild"
+            },
+            {
+              "value": "moderate",
+              "label": "Moderate"
+            },
+            {
+              "value": "severe",
+              "label": "Severe"
+            }
+          ]
+        }
+      ]
+    },
+    "lafdPost": {
+      "insertAfter": "emojiGridSection",
+      "timing": "post",
+      "questions": [
+        {
+          "type": "vas",
+          "field": "lafdSessionUtility",
+          "question": "How well did this session meet your needs today?",
+          "labelLow": "Not at all",
+          "labelHigh": "Completely"
+        },
+        {
+          "type": "multiSelect",
+          "field": "lafdUsageContext",
+          "question": "Where could you see yourself using Shiftwave?",
+          "hint": "Select all that apply",
+          "exclusiveValues": [
+            "not_work",
+            "not_sure"
+          ],
+          "options": [
+            {
+              "value": "after_shift",
+              "label": "After a shift, for decompression and recovery"
+            },
+            {
+              "value": "before_shift",
+              "label": "Before a shift, to get mentally ready"
+            },
+            {
+              "value": "firehouse",
+              "label": "During downtime at the firehouse"
+            },
+            {
+              "value": "home_wellness",
+              "label": "At home, for personal wellness"
+            },
+            {
+              "value": "not_work",
+              "label": "I wouldn’t use it in a work context"
+            },
+            {
+              "value": "not_sure",
+              "label": "I’m not sure yet"
+            }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "lafdHormonalAttribution",
+          "required": false,
+          "question": "Did today's session help ease any symptoms related to your hormonal health?",
+          "showIfAnswered": {
+            "field": "lafdHormonalStage",
+            "exclude": [
+              "prefer_not"
+            ]
+          },
+          "options": [
+            {
+              "value": "yes_noticeably",
+              "label": "Yes, noticeably"
+            },
+            {
+              "value": "somewhat",
+              "label": "Somewhat"
+            },
+            {
+              "value": "not_really",
+              "label": "Not that I could tell"
+            },
+            {
+              "value": "no_symptoms",
+              "label": "I wasn’t experiencing symptoms today"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

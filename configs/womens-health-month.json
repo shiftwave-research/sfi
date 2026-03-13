@@ -1,0 +1,9 @@
+{
+  "preset": {
+    "displayName": "Women's Health Month",
+    "studyTag": "womens_health_month_2026",
+    "suppressFemaleHealthBlock": false,
+    "addons": []
+  },
+  "addons": {}
+}

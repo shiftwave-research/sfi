@@ -1,0 +1,276 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://shiftwave-research.github.io/sfi/schemas/config.schema.json",
+  "title": "SFI Deployment Config",
+  "description": "Schema for Shiftwave Field Instrument deployment configuration files",
+  "type": "object",
+  "required": ["preset", "addons"],
+  "additionalProperties": {
+    "description": "Top-level keys starting with _ are treated as comments and ignored by the SFI"
+  },
+  "properties": {
+
+    "preset": {
+      "type": "object",
+      "required": ["displayName", "addons"],
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Shown in the survey header"
+        },
+        "studyTag": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z0-9_]+$",
+          "description": "Snake_case tag included in every Supabase submission for filtering"
+        },
+        "anonymousMode": {
+          "type": "boolean",
+          "description": "true = QR/kiosk mode with ANON-IDs. false (default) = identified mode with name lookup"
+        },
+        "suppressFemaleHealthBlock": {
+          "type": "boolean",
+          "description": "true removes the core female hormonal health block from the DOM entirely"
+        },
+        "defaultProtocol": {
+          "type": ["string", "null"],
+          "description": "Pre-fills the protocol field. Use null or omit to leave blank"
+        },
+        "addons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Ordered list of addon keys to inject. Must match keys in the addons object"
+        }
+      }
+    },
+
+    "addons": {
+      "type": "object",
+      "description": "Map of addon key -> addon block definition",
+      "additionalProperties": { "$ref": "#/definitions/addonBlock" }
+    }
+
+  },
+
+  "definitions": {
+
+    "addonBlock": {
+      "type": "object",
+      "required": ["insertAfter", "timing", "questions"],
+      "additionalProperties": false,
+      "properties": {
+        "insertAfter": {
+          "type": "string",
+          "enum": [
+            "surveyBodyStart",
+            "vasItem_bodyTension",
+            "vasItem_energy",
+            "vasItem_bodyConnection",
+            "vasItem_clarity",
+            "vasItem_mentalQuiet",
+            "vasItem_alertness",
+            "emojiGridSection"
+          ],
+          "description": "SSS anchor element ID after which this block is injected. Must be a core SSS ID — never another addon's ID"
+        },
+        "timing": {
+          "type": "string",
+          "enum": ["pre", "post", "both"],
+          "description": "When this block is visible"
+        },
+        "required": {
+          "type": "object",
+          "description": "Explicit required field list. If omitted, required fields are auto-derived from questions array",
+          "properties": {
+            "pre":  { "type": "array", "items": { "type": "string" } },
+            "post": { "type": "array", "items": { "type": "string" } },
+            "both": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/question" }
+        }
+      }
+    },
+
+    "question": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["sectionHeader", "sectionDescription", "vas", "singleSelect", "multiSelect", "likert5", "nps", "conditional"]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "sectionHeader" } } },
+          "then": {
+            "required": ["label"],
+            "properties": {
+              "type": {},
+              "label": { "type": "string", "minLength": 1 },
+              "style": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "sectionDescription" } } },
+          "then": {
+            "required": ["html"],
+            "properties": {
+              "type": {},
+              "html": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "vas" } } },
+          "then": {
+            "required": ["field", "question", "labelLow", "labelHigh"],
+            "properties": {
+              "type": {},
+              "field": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$" },
+              "question": { "type": "string", "minLength": 1 },
+              "labelLow": { "type": "string", "minLength": 1 },
+              "labelHigh": { "type": "string", "minLength": 1 },
+              "required": { "type": "boolean" },
+              "showIf": { "$ref": "#/definitions/showIf" },
+              "showIfAnswered": { "$ref": "#/definitions/showIfAnswered" }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "singleSelect" } } },
+          "then": {
+            "required": ["field", "question", "options"],
+            "properties": {
+              "type": {},
+              "field": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$" },
+              "question": { "type": "string", "minLength": 1 },
+              "options": { "$ref": "#/definitions/optionsList" },
+              "blockId": { "type": "string" },
+              "skipIfReturning": { "type": "boolean" },
+              "conditionalTarget": { "type": "string" },
+              "required": { "type": "boolean" },
+              "showIf": { "$ref": "#/definitions/showIf" },
+              "showIfAnswered": { "$ref": "#/definitions/showIfAnswered" }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "multiSelect" } } },
+          "then": {
+            "required": ["field", "question", "options"],
+            "properties": {
+              "type": {},
+              "field": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$" },
+              "question": { "type": "string", "minLength": 1 },
+              "hint": { "type": "string" },
+              "options": { "$ref": "#/definitions/optionsList" },
+              "exclusiveValue": { "type": "string" },
+              "exclusiveValues": { "type": "array", "items": { "type": "string" } },
+              "required": { "type": "boolean" },
+              "showIf": { "$ref": "#/definitions/showIf" },
+              "showIfAnswered": { "$ref": "#/definitions/showIfAnswered" }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "likert5" } } },
+          "then": {
+            "required": ["field", "question"],
+            "properties": {
+              "type": {},
+              "field": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$" },
+              "question": { "type": "string", "minLength": 1 },
+              "required": { "type": "boolean" },
+              "showIf": { "$ref": "#/definitions/showIf" }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "nps" } } },
+          "then": {
+            "required": ["field", "question", "labelLow", "labelHigh"],
+            "properties": {
+              "type": {},
+              "field": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_]*$" },
+              "question": { "type": "string", "minLength": 1 },
+              "labelLow": { "type": "string", "minLength": 1 },
+              "labelHigh": { "type": "string", "minLength": 1 },
+              "required": { "type": "boolean" }
+            },
+            "additionalProperties": false
+          }
+        },
+        {
+          "if": { "properties": { "type": { "const": "conditional" } } },
+          "then": {
+            "required": ["id", "questions"],
+            "properties": {
+              "type": {},
+              "id": { "type": "string", "minLength": 1 },
+              "questions": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/definitions/question" }
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      ]
+    },
+
+    "optionsList": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["value", "label"],
+        "additionalProperties": false,
+        "properties": {
+          "value": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+
+    "showIf": {
+      "type": "object",
+      "required": ["field", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "field": { "type": "string" },
+        "value": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        }
+      }
+    },
+
+    "showIfAnswered": {
+      "type": "object",
+      "required": ["field"],
+      "additionalProperties": false,
+      "properties": {
+        "field": { "type": "string" },
+        "exclude": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+
+  }
+}

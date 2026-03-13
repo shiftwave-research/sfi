@@ -1,0 +1,182 @@
+{
+  "preset": {
+    "displayName": "Burnout Study",
+    "studyTag": "suzanne_burnout_2026",
+    "anonymousMode": false,
+    "suppressFemaleHealthBlock": false,
+    "addons": ["szTension", "szBurnoutPre", "szWornOut", "szAcceptPost"]
+  },
+
+  "_notes": {
+    "tension_order": "Head-to-toe sequence: jaw → head/temples → neck/throat → shoulders → chest/diaphragm → back → hips/pelvis → gut/abdomen → hands → feet. Matches natural body scan direction.",
+    "tension_anchor": "Both szTension and szBurnout share insertAfter:vasItem_bodyTension. Injection order follows preset.addons array — szTension inserts first (immediately after core body tension), then szBurnoutPre/szWornOut follow as a capstone to the somatic inventory.",
+    "tension_labels": "High anchor changed from 'Extreme' to 'Intense' — more specific to tension, avoids pain connotation.",
+    "burnout_timing": "sz_managing_emotions and sz_burnout_capacity are pre-only — they measure coping capacity that doesn't shift in 15 minutes. sz_worn_out appears at both timings as fatigue is fast-moving enough to be meaningful post-session.",
+    "emotional_state_pruning": "Suzanne's 10-item battery reduced to 3 novel items. Removed items fully covered by SSS or STAI-6: energetic, anxious/jittery, tired, foggy/scattered, calm/relaxed, clear/focused, tense/overwhelmed.",
+    "3day_followup": "Participants instructed to return and complete a new pre-session 3 days later using same name. Identifiable in data by: pre-only session, no matched post in same session_id, timestamp ~3 days after original pair.",
+    "pii": "Email, phone, date require edge function changes. Not implemented.",
+    "comment_prompts": "Suzanne uses different open-ended prompts per timepoint. Per-timing comment text requires HTML change — not yet implemented."
+  },
+
+  "addons": {
+
+    "szTension": {
+      "insertAfter": "vasItem_bodyTension",
+      "timing": "both",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Where do you hold tension?"
+        },
+        {
+          "type": "sectionDescription",
+          "html": "Rate each area as it feels <strong>right now</strong>."
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_jaw",
+          "question": "I feel tension in my jaw",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_head",
+          "question": "I feel tension in my head (e.g. temples)",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_neck_throat",
+          "question": "I feel tension in my neck and/or throat",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_shoulders",
+          "question": "I feel tension in my shoulders",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_chest",
+          "question": "I feel tension in my chest and diaphragm",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_back",
+          "question": "I feel tension in my back",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_hips_pelvis",
+          "question": "I feel tension in my hips and pelvis",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_stomach",
+          "question": "I feel tension in my gut and abdomen",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_hands",
+          "question": "I feel tension in my hands",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        },
+        {
+          "type": "vas",
+          "field": "sz_t_feet",
+          "question": "I feel tension in my feet",
+          "labelLow": "None",
+          "labelHigh": "Intense"
+        }
+      ]
+    },
+
+    "szBurnoutPre": {
+      "insertAfter": "vasItem_bodyTension",
+      "timing": "pre",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Wellbeing"
+        },
+        {
+          "type": "vas",
+          "field": "sz_worn_out",
+          "question": "I feel worn out and weary",
+          "labelLow": "Not at all",
+          "labelHigh": "Very much so"
+        },
+        {
+          "type": "vas",
+          "field": "sz_managing_emotions",
+          "question": "I am managing my emotions well",
+          "labelLow": "Not at all",
+          "labelHigh": "Very much so"
+        },
+        {
+          "type": "vas",
+          "field": "sz_burnout_capacity",
+          "question": "I can tolerate the pressure of my life and work well",
+          "labelLow": "Not at all",
+          "labelHigh": "Very much so"
+        }
+      ]
+    },
+
+    "szWornOut": {
+      "insertAfter": "vasItem_bodyTension",
+      "timing": "post",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Wellbeing"
+        },
+        {
+          "type": "vas",
+          "field": "sz_worn_out",
+          "question": "I feel worn out and weary",
+          "labelLow": "Not at all",
+          "labelHigh": "Very much so"
+        }
+      ]
+    },
+
+    "szAcceptPost": {
+      "insertAfter": "emojiGridSection",
+      "timing": "post",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Experience"
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_use_again",
+          "question": "Would you use the Shiftwave chair again?",
+          "options": [
+            { "value": "definitely_yes", "label": "Definitely yes" },
+            { "value": "probably_yes",   "label": "Probably yes" },
+            { "value": "unsure",         "label": "Not sure" },
+            { "value": "probably_not",   "label": "Probably not" },
+            { "value": "definitely_not", "label": "Definitely not" }
+          ]
+        }
+      ]
+    }
+
+  }
+}

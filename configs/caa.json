@@ -1,0 +1,297 @@
+{
+  "preset": {
+    "displayName": "CAA",
+    "addons": [
+      "caaPreUsage",
+      "caaPost"
+    ]
+  },
+  "addons": {
+    "caaPreUsage": {
+      "insertAfter": "surveyBodyStart",
+      "timing": "pre",
+      "required": {
+        "pre": [
+          "caaUsageCount",
+          "caaPromptedBy"
+        ]
+      },
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Usage &amp; Motivation"
+        },
+        {
+          "type": "singleSelect",
+          "field": "caaUsageCount",
+          "question": "How many times have you used the Shiftwave chair before today?",
+          "blockId": "caaUsageCountBlock",
+          "skipIfReturning": true,
+          "conditionalTarget": "caaConditional",
+          "options": [
+            {
+              "value": "first_time",
+              "label": "This is my first time"
+            },
+            {
+              "value": "1_2",
+              "label": "1–2 times"
+            },
+            {
+              "value": "3_5",
+              "label": "3–5 times"
+            },
+            {
+              "value": "6_10",
+              "label": "6–10 times"
+            },
+            {
+              "value": "10plus",
+              "label": "More than 10 times"
+            }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "caaPromptedBy",
+          "question": "What’s your main reason for using Shiftwave today?",
+          "options": [
+            {
+              "value": "stress_anxiety",
+              "label": "Stress or anxiety"
+            },
+            {
+              "value": "relax",
+              "label": "To relax / unwind"
+            },
+            {
+              "value": "focus",
+              "label": "To improve focus or mental clarity"
+            },
+            {
+              "value": "physical",
+              "label": "Physical tension or discomfort"
+            },
+            {
+              "value": "break",
+              "label": "Wellness or scheduled break"
+            },
+            {
+              "value": "preventative",
+              "label": "Preventative / regular routine"
+            },
+            {
+              "value": "available",
+              "label": "Saw the chair was available"
+            },
+            {
+              "value": "recommended",
+              "label": "Recommended by someone"
+            },
+            {
+              "value": "curiosity",
+              "label": "Curiosity / trying it out"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "type": "conditional",
+          "id": "caaConditional",
+          "questions": [
+            {
+              "type": "multiSelect",
+              "field": "caaTiming",
+              "question": "When do you typically use Shiftwave?",
+              "hint": "Select all that apply",
+              "exclusiveValue": "no_pattern",
+              "options": [
+                {
+                  "value": "morning",
+                  "label": "Morning (to start the day)"
+                },
+                {
+                  "value": "mid_morning",
+                  "label": "Mid-morning (work break)"
+                },
+                {
+                  "value": "lunch",
+                  "label": "Lunch break"
+                },
+                {
+                  "value": "afternoon",
+                  "label": "Afternoon (mid-day slump)"
+                },
+                {
+                  "value": "after_work",
+                  "label": "After work (transition home)"
+                },
+                {
+                  "value": "no_pattern",
+                  "label": "No regular pattern"
+                },
+                {
+                  "value": "other",
+                  "label": "Other"
+                }
+              ]
+            },
+            {
+              "type": "multiSelect",
+              "field": "caaKeepsComing",
+              "question": "What keeps you coming back to Shiftwave?",
+              "hint": "Select all that apply",
+              "options": [
+                {
+                  "value": "effective",
+                  "label": "It’s effective at reducing my stress / anxiety"
+                },
+                {
+                  "value": "convenient",
+                  "label": "It’s quick and convenient"
+                },
+                {
+                  "value": "fits_routine",
+                  "label": "It fits into my work routine easily"
+                },
+                {
+                  "value": "physical",
+                  "label": "I enjoy the physical sensation"
+                },
+                {
+                  "value": "refocus",
+                  "label": "It helps me refocus"
+                },
+                {
+                  "value": "better",
+                  "label": "It’s better than alternatives I’ve tried"
+                },
+                {
+                  "value": "routine",
+                  "label": "It’s become part of my wellness routine"
+                },
+                {
+                  "value": "other",
+                  "label": "Other"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "caaPost": {
+      "insertAfter": "emojiGridSection",
+      "timing": "post",
+      "required": {
+        "post": [
+          "caaAccept1",
+          "caaAccept2",
+          "caaAccept3",
+          "caaAccept4",
+          "caaAccept5",
+          "caaAccept6",
+          "caaUseAgain",
+          "caaRecommend",
+          "caaFrequency"
+        ]
+      },
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Your Experience"
+        },
+        {
+          "type": "sectionDescription",
+          "html": "Rate each statement about this session.<br><span style=\"font-size:0.8em;color:#888;\">(1 = Strongly disagree &mdash; 5 = Strongly agree)</span>"
+        },
+        {
+          "type": "likert5",
+          "field": "caaAccept1",
+          "question": "I enjoyed this session"
+        },
+        {
+          "type": "likert5",
+          "field": "caaAccept2",
+          "question": "The session fit conveniently into my day"
+        },
+        {
+          "type": "likert5",
+          "field": "caaAccept3",
+          "question": "I understand how Shiftwave is supposed to help"
+        },
+        {
+          "type": "likert5",
+          "field": "caaAccept4",
+          "question": "This session helped me feel calmer and more relaxed"
+        },
+        {
+          "type": "likert5",
+          "field": "caaAccept5",
+          "question": "The vibration sensation was comfortable"
+        },
+        {
+          "type": "likert5",
+          "field": "caaAccept6",
+          "question": "I would use Shiftwave as part of my stress management routine"
+        },
+        {
+          "type": "sectionHeader",
+          "label": "Workplace",
+          "style": "margin-top:24px;"
+        },
+        {
+          "type": "nps",
+          "field": "caaReturnReady",
+          "question": "How ready do you feel to return to your work tasks right now?",
+          "labelLow": "Not Ready",
+          "labelHigh": "Fully Ready"
+        },
+        {
+          "type": "nps",
+          "field": "caaUseAgain",
+          "question": "How likely are you to use Shiftwave again?",
+          "labelLow": "Not at all likely",
+          "labelHigh": "Extremely likely"
+        },
+        {
+          "type": "nps",
+          "field": "caaRecommend",
+          "question": "How likely are you to recommend Shiftwave to a colleague?",
+          "labelLow": "Not at all likely",
+          "labelHigh": "Extremely likely"
+        },
+        {
+          "type": "singleSelect",
+          "field": "caaFrequency",
+          "question": "How often do you see yourself using Shiftwave at the office?",
+          "options": [
+            {
+              "value": "daily",
+              "label": "Daily"
+            },
+            {
+              "value": "few_week",
+              "label": "A few times a week"
+            },
+            {
+              "value": "weekly",
+              "label": "Weekly"
+            },
+            {
+              "value": "few_month",
+              "label": "A few times a month"
+            },
+            {
+              "value": "rarely",
+              "label": "Rarely"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
