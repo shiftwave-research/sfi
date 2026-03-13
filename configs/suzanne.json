@@ -4,7 +4,6 @@
     "studyTag": "suzanne_burnout_2026",
     "anonymousMode": false,
     "suppressFemaleHealthBlock": false,
-    "defaultProtocol": "Cognitive Clarity Reset",
     "addons": ["szEmotionalState", "szTension", "szAcceptPost"]
   },
 
