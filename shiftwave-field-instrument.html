@@ -3049,10 +3049,14 @@
 
         function renderAddonHTML(addonKey, addon) {
             if (addon.html) return addon.html; // escape hatch: raw HTML string, not used by any current addon
-            // timing:'both' addons (e.g. atomic VAS sliders) render without a wrapper —
-            // they sit inline with the SSS VAS items and are always visible.
+            // All addons — including timing:'both' — render with an outer wrapper div so that
+            // the injection code's firstChild reliably captures the entire block.
+            // Previously timing:'both' rendered flat (no wrapper), which caused only the first
+            // child element (typically a sectionHeader) to be injected; the rest were silently dropped.
             if (addon.timing === 'both') {
-                return addon.questions.map(renderQuestion).join('\n');
+                return '<div class="addon-timing-block addon-both">\n'
+                     + addon.questions.map(renderQuestion).join('\n')
+                     + '\n</div>';
             }
             // Split questions at the first optionalBlock:true marker.
             // Everything before renders normally; everything after renders inside
