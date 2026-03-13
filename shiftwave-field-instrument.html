@@ -3209,10 +3209,12 @@
                 if (el.value) obj[el.dataset.field] = el.value;
             });
 
-            // Collect engaged addon VAS sliders
+            // Collect engaged addon VAS sliders — but only if not already captured as
+            // an integer in addonValues. el.value is always a string; addonValues stores
+            // the correctly-typed parseInt result, so we must not overwrite it here.
             document.querySelectorAll('.addon-engage-slider').forEach(el => {
                 if (el.dataset.field && addonValues[el.dataset.field] !== undefined) {
-                    obj[el.dataset.field] = el.value;
+                    obj[el.dataset.field] = addonValues[el.dataset.field]; // use typed value from addonValues
                 }
             });
 
