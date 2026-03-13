@@ -4,13 +4,148 @@
     "studyTag": "suzanne_burnout_2026",
     "anonymousMode": false,
     "suppressFemaleHealthBlock": false,
-    "addons": ["szBodyRegionPre", "szBodyRegionPost", "szBurnoutPre", "szAcceptPost"]
+    "defaultProtocol": "Cognitive Clarity Reset",
+    "addons": ["szEmotionalState", "szTension", "szAcceptPost"]
   },
+
+  "_notes": {
+    "tension_scale": "Tension and emotional state items use Suzanne's 4-point Likert scale (1=Not At All, 4=Very Much So) to maintain commensurability with her paper instrument and Huddersfield data. To switch to VAS, replace singleSelect blocks with vas type and remove options arrays.",
+    "3day_followup": "3-day follow-up timing is not yet implemented in the SFI HTML. Acceptability item (sz_use_again) has been added to post as the closest available substitute. When 3-day timing is built, move sz_use_again and the open-ended experience question there.",
+    "pii": "Suzanne's form captures email, phone, and date. These require edge function changes to route to participant_keys only. Not implemented here — coordinate with Wyatt.",
+    "open_ended": "Suzanne uses different open-ended prompts at each timepoint. Pre: life/work context. Post: experience of the chair. The core SFI comment field is currently a fixed placeholder — per-deployment/per-timing comment text requires a small HTML change.",
+    "overlap_items": "Most emotional state items overlap with SSS (energetic, anxious, tired, foggy, calm, clear, tense). They are included here in full to preserve commensurability with her paper form. Genuinely novel items: sz_es_worn_out, sz_es_managing_emotions, sz_es_burnout_capacity."
+  },
+
   "addons": {
 
-    "szBodyRegionPre": {
+    "szEmotionalState": {
+      "insertAfter": "surveyBodyStart",
+      "timing": "both",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Emotional State"
+        },
+        {
+          "type": "sectionDescription",
+          "html": "Read each statement and indicate how you feel <strong>right now</strong>."
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_worn_out",
+          "question": "I feel worn out and weary",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_energetic",
+          "question": "I feel energetic",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_managing_emotions",
+          "question": "I am managing my emotions well",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_anxious",
+          "question": "I feel anxious and jittery",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_tired",
+          "question": "I feel tired",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_foggy",
+          "question": "I feel foggy, scattered",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_calm",
+          "question": "I feel calm and relaxed",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_clear",
+          "question": "I feel clear and able to focus",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_tense_overwhelmed",
+          "question": "I feel tense and overwhelmed",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_es_burnout_capacity",
+          "question": "I can tolerate the pressure of my life and work well",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        }
+      ]
+    },
+
+    "szTension": {
       "insertAfter": "vasItem_bodyTension",
-      "timing": "pre",
+      "timing": "both",
       "questions": [
         {
           "type": "sectionHeader",
@@ -18,50 +153,117 @@
         },
         {
           "type": "sectionDescription",
-          "html": "Rate tension in each area right now."
-        },
-        { "type": "vas", "field": "sz_tension_shoulders",   "question": "Shoulders",   "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_chest",       "question": "Chest",        "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_throat",      "question": "Throat",       "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_lower_back",  "question": "Lower Back",   "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_arms",        "question": "Arms",         "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_legs",        "question": "Legs",         "labelLow": "None", "labelHigh": "Extreme" }
-      ]
-    },
-
-    "szBodyRegionPost": {
-      "insertAfter": "vasItem_bodyTension",
-      "timing": "post",
-      "questions": [
-        {
-          "type": "sectionHeader",
-          "label": "Where do you hold tension?"
+          "html": "Indicate how much tension you feel in each area <strong>right now</strong>."
         },
         {
-          "type": "sectionDescription",
-          "html": "Rate tension in each area right now."
-        },
-        { "type": "vas", "field": "sz_tension_shoulders",   "question": "Shoulders",   "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_chest",       "question": "Chest",        "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_throat",      "question": "Throat",       "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_lower_back",  "question": "Lower Back",   "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_arms",        "question": "Arms",         "labelLow": "None", "labelHigh": "Extreme" },
-        { "type": "vas", "field": "sz_tension_legs",        "question": "Legs",         "labelLow": "None", "labelHigh": "Extreme" }
-      ]
-    },
-
-    "szBurnoutPre": {
-      "insertAfter": "emojiGridSection",
-      "timing": "pre",
-      "questions": [
-        {
-          "type": "sectionHeader",
-          "label": "Capacity"
+          "type": "singleSelect",
+          "field": "sz_t_jaw",
+          "question": "I feel tension in my jaw",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
         },
         {
-          "type": "likert5",
-          "field": "sz_burnout_capacity",
-          "question": "I can tolerate the pressure of my life and work well"
+          "type": "singleSelect",
+          "field": "sz_t_chest",
+          "question": "I feel tension in my chest and diaphragm",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_shoulders",
+          "question": "I feel tension in my shoulders",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_neck_throat",
+          "question": "I feel tension in my neck and/or throat",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_back",
+          "question": "I feel tension in my back",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_hips_pelvis",
+          "question": "I feel tension in my hips and pelvis",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_stomach",
+          "question": "I feel tension in my stomach",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_head",
+          "question": "I feel tension in my head (e.g. temples)",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_hands",
+          "question": "I feel tension in my hands",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_t_feet",
+          "question": "I feel tension in my feet",
+          "options": [
+            { "value": "1", "label": "Not At All" },
+            { "value": "2", "label": "Somewhat" },
+            { "value": "3", "label": "Moderately So" },
+            { "value": "4", "label": "Very Much So" }
+          ]
         }
       ]
     },
