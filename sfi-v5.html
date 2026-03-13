@@ -1594,6 +1594,59 @@
             </div>
         </div>
 
+        <!-- Core Female Health Block — hidden by default, revealed when sex === 'female' -->
+        <div id="femaleHealthBlock" class="setup-section hidden" style="border-color: #4a2040;">
+            <div id="femaleHealthOptIn">
+                <div style="font-size:0.85rem; color:#c084a0; margin-bottom:12px; line-height:1.5;">
+                    We're studying how hormonal context may influence session outcomes.
+                    Would you like to answer a few optional questions about this?
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button type="button" id="femaleHealthYes" class="timing-btn">Yes, include me</button>
+                    <button type="button" id="femaleHealthSkip" class="timing-btn">Skip</button>
+                </div>
+            </div>
+            <div id="femaleHealthQuestions" class="hidden" style="margin-top:16px;">
+                <div class="addon-question-block">
+                    <div class="addon-question">Which best describes your current hormonal life stage?</div>
+                    <div class="addon-ss-group" data-field="core_hormonal_stage">
+                        <button class="addon-ss-btn" data-value="regular_cycles">Regular menstrual cycles</button>
+                        <button class="addon-ss-btn" data-value="perimenopause">Perimenopause (irregular or changing cycles)</button>
+                        <button class="addon-ss-btn" data-value="post_menopause">Post-menopause (no longer have periods)</button>
+                        <button class="addon-ss-btn" data-value="pregnant_pp">Pregnant or postpartum</button>
+                        <button class="addon-ss-btn" data-value="prefer_not">Prefer not to say</button>
+                    </div>
+                </div>
+                <div class="addon-showif hidden"
+                     data-showif-field="core_hormonal_stage"
+                     data-showif-value='["regular_cycles","perimenopause"]'>
+                    <div class="addon-question-block">
+                        <div class="addon-question">Roughly where are you in your cycle right now?</div>
+                        <div class="addon-ss-group" data-field="core_cycle_phase">
+                            <button class="addon-ss-btn" data-value="menstrual">Menstrual (period)</button>
+                            <button class="addon-ss-btn" data-value="follicular">Follicular (post-period, pre-ovulation)</button>
+                            <button class="addon-ss-btn" data-value="ovulation">Around ovulation</button>
+                            <button class="addon-ss-btn" data-value="luteal">Luteal (pre-period)</button>
+                            <button class="addon-ss-btn" data-value="not_sure">Not sure</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="addon-showif hidden"
+                     data-showif-field="core_hormonal_stage"
+                     data-showif-value='["regular_cycles","perimenopause"]'>
+                    <div class="addon-question-block">
+                        <div class="addon-question">Rate the severity of any menstrual symptoms you're experiencing right now.</div>
+                        <div class="addon-ss-group" data-field="core_symptom_severity">
+                            <button class="addon-ss-btn" data-value="none">None</button>
+                            <button class="addon-ss-btn" data-value="mild">Mild</button>
+                            <button class="addon-ss-btn" data-value="moderate">Moderate</button>
+                            <button class="addon-ss-btn" data-value="severe">Severe</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Welcome back banner: sits between name entry and session details -->
         <div id="welcomeBanner" class="hidden"></div>
 
@@ -3297,6 +3350,22 @@
             }
         });
 
+        // ========== FEMALE HEALTH BLOCK RESET ==========
+        function resetFemaleHealthBlock() {
+            const optIn = document.getElementById('femaleHealthOptIn');
+            if (optIn) optIn.style.display = '';
+            const questions = document.getElementById('femaleHealthQuestions');
+            if (questions) hideSection(questions);
+            const block = document.getElementById('femaleHealthBlock');
+            if (block) {
+                block.querySelectorAll('.addon-ss-btn.selected').forEach(b => b.classList.remove('selected'));
+                block.querySelectorAll('.addon-showif').forEach(el => el.classList.add('hidden'));
+            }
+            delete addonValues['core_hormonal_stage'];
+            delete addonValues['core_cycle_phase'];
+            delete addonValues['core_symptom_severity'];
+        }
+
         // ========== RESET ==========
         function resetForm() {
             // sessionId persists across pre→post (same session) but regenerates on Start New Session (post→new)
@@ -3413,6 +3482,9 @@
             
             // Always hide demographics on reset — already captured on first visit
             hideSection(document.getElementById('demographicsRow'));
+            // Reset female health block (hide and clear, regardless of sex selection)
+            hideSection(document.getElementById('femaleHealthBlock'));
+            resetFemaleHealthBlock();
 
             // Show the form sections (name + protocol are intentionally preserved)
             if (!isAnonymousMode) document.getElementById('setupSection').classList.remove('hidden');
@@ -3549,7 +3621,33 @@
         lastNameInput.addEventListener('blur', triggerLookupIfReady);
 
         // Sex listener for progress tracking
-        document.getElementById('participantSex').addEventListener('change', updateProgress);
+        // ========== CORE FEMALE HEALTH BLOCK ==========
+        if (activePreset.suppressFemaleHealthBlock) {
+            const block = document.getElementById('femaleHealthBlock');
+            if (block) block.remove();
+            // No sex listener needed — block is gone
+            document.getElementById('participantSex').addEventListener('change', updateProgress);
+        } else {
+            document.getElementById('participantSex').addEventListener('change', function() {
+                updateProgress();
+                const block = document.getElementById('femaleHealthBlock');
+                if (!block) return;
+                if (this.value === 'female') {
+                    revealSection(block, 150);
+                } else {
+                    hideSection(block);
+                    resetFemaleHealthBlock();
+                }
+            });
+            document.getElementById('femaleHealthYes').addEventListener('click', function() {
+                document.getElementById('femaleHealthOptIn').style.display = 'none';
+                revealSection(document.getElementById('femaleHealthQuestions'), 0);
+            });
+            document.getElementById('femaleHealthSkip').addEventListener('click', function() {
+                hideSection(document.getElementById('femaleHealthBlock'));
+                resetFemaleHealthBlock();
+            });
+        }
 
         // ========== PROTOCOL SEARCHABLE DROPDOWN ==========
         const PROTOCOLS = [
