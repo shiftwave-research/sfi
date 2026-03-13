@@ -1,0 +1,93 @@
+{
+  "preset": {
+    "displayName": "Burnout Study",
+    "studyTag": "suzanne_burnout_2026",
+    "anonymousMode": false,
+    "suppressFemaleHealthBlock": false,
+    "addons": ["szBodyRegionPre", "szBodyRegionPost", "szBurnoutPre", "szAcceptPost"]
+  },
+  "addons": {
+
+    "szBodyRegionPre": {
+      "insertAfter": "vasItem_bodyTension",
+      "timing": "pre",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Where do you hold tension?"
+        },
+        {
+          "type": "sectionDescription",
+          "html": "Rate tension in each area right now."
+        },
+        { "type": "vas", "field": "sz_tension_shoulders",   "question": "Shoulders",   "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_chest",       "question": "Chest",        "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_throat",      "question": "Throat",       "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_lower_back",  "question": "Lower Back",   "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_arms",        "question": "Arms",         "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_legs",        "question": "Legs",         "labelLow": "None", "labelHigh": "Extreme" }
+      ]
+    },
+
+    "szBodyRegionPost": {
+      "insertAfter": "vasItem_bodyTension",
+      "timing": "post",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Where do you hold tension?"
+        },
+        {
+          "type": "sectionDescription",
+          "html": "Rate tension in each area right now."
+        },
+        { "type": "vas", "field": "sz_tension_shoulders",   "question": "Shoulders",   "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_chest",       "question": "Chest",        "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_throat",      "question": "Throat",       "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_lower_back",  "question": "Lower Back",   "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_arms",        "question": "Arms",         "labelLow": "None", "labelHigh": "Extreme" },
+        { "type": "vas", "field": "sz_tension_legs",        "question": "Legs",         "labelLow": "None", "labelHigh": "Extreme" }
+      ]
+    },
+
+    "szBurnoutPre": {
+      "insertAfter": "emojiGridSection",
+      "timing": "pre",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Capacity"
+        },
+        {
+          "type": "likert5",
+          "field": "sz_burnout_capacity",
+          "question": "I can tolerate the pressure of my life and work well"
+        }
+      ]
+    },
+
+    "szAcceptPost": {
+      "insertAfter": "emojiGridSection",
+      "timing": "post",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Experience"
+        },
+        {
+          "type": "singleSelect",
+          "field": "sz_use_again",
+          "question": "Would you use the Shiftwave chair again?",
+          "options": [
+            { "value": "definitely_yes",  "label": "Definitely yes" },
+            { "value": "probably_yes",    "label": "Probably yes" },
+            { "value": "unsure",          "label": "Not sure" },
+            { "value": "probably_not",    "label": "Probably not" },
+            { "value": "definitely_not",  "label": "Definitely not" }
+          ]
+        }
+      ]
+    }
+
+  }
+}
