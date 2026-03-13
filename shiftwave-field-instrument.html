@@ -3054,7 +3054,7 @@
             // Previously timing:'both' rendered flat (no wrapper), which caused only the first
             // child element (typically a sectionHeader) to be injected; the rest were silently dropped.
             if (addon.timing === 'both') {
-                return '<div class="addon-timing-block addon-both">\n'
+                return '<div class="section addon-both">\n'
                      + addon.questions.map(renderQuestion).join('\n')
                      + '\n</div>';
             }
