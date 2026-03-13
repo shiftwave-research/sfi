@@ -4,7 +4,7 @@
     "studyTag": "suzanne_burnout_2026",
     "anonymousMode": false,
     "suppressFemaleHealthBlock": false,
-    "addons": ["szBurnout", "szTension", "szAcceptPost"]
+    "addons": ["szBurnoutPre", "szWornOut", "szTension", "szAcceptPost"]
   },
 
   "_notes": {
@@ -18,9 +18,9 @@
 
   "addons": {
 
-    "szBurnout": {
+    "szBurnoutPre": {
       "insertAfter": "surveyBodyStart",
-      "timing": "both",
+      "timing": "pre",
       "questions": [
         {
           "type": "sectionHeader",
@@ -44,6 +44,24 @@
           "type": "vas",
           "field": "sz_burnout_capacity",
           "question": "I can tolerate the pressure of my life and work well",
+          "labelLow": "Not at all",
+          "labelHigh": "Very much so"
+        }
+      ]
+    },
+
+    "szWornOut": {
+      "insertAfter": "surveyBodyStart",
+      "timing": "post",
+      "questions": [
+        {
+          "type": "sectionHeader",
+          "label": "Wellbeing"
+        },
+        {
+          "type": "vas",
+          "field": "sz_worn_out",
+          "question": "I feel worn out and weary",
           "labelLow": "Not at all",
           "labelHigh": "Very much so"
         }
@@ -107,7 +125,7 @@
         {
           "type": "vas",
           "field": "sz_t_stomach",
-          "question": "I feel tension in my stomach",
+          "question": "I feel tension in my gut and abdomen",
           "labelLow": "None",
           "labelHigh": "Extreme"
         },
