@@ -1632,7 +1632,7 @@
             Your responses will be collected by Shiftwave and used for research and performance monitoring purposes. Your name will be replaced with an anonymous participant ID &mdash; no personally identifiable information will appear in any shared data or reports.<br><br>
             <strong>Sharing with your organization:</strong> Aggregated, de-identified results may be shared with the organization hosting this study for the purpose of evaluating Shiftwave.<br><br>
             <strong>Research and publication:</strong> Data may also be used in aggregate, de-identified form for Shiftwave&rsquo;s internal research and, potentially, future publication. No individual will be identifiable in any published output.<br><br>
-            <strong>Data retention:</strong> Data will be retained for a minimum of 2 years and may be held longer for research continuity. You may request deletion of your record at any time by contacting <a href="mailto:research@shiftwave.co" style="color:#4ade80;">research@shiftwave.co</a>.<br><br>
+            <strong>Data retention:</strong> Data will be retained for a minimum of 2 years and may be held longer for research continuity. You may request deletion of your record at any time by contacting <a href="/cdn-cgi/l/email-protection#75071006101407161d35061d1c1301021403105b161a" style="color:#4ade80;"><span class="__cf_email__" data-cfemail="15677066707467767d55667d7c7361627463703b767a">[email&#160;protected]</span></a>.<br><br>
             Participation is voluntary and you may stop at any time without consequence.<br><br>
             <strong>Risks:</strong> Participating involves minimal risk. The primary risk is potential breach of confidentiality; reasonable safeguards are in place to reduce this risk. By proceeding, you also acknowledge that you have reviewed the <a href="https://shiftwave.co/pages/shiftwave-contraindications" target="_blank" style="color:#4ade80;">contraindications to Shiftwave use</a> and confirm they do not apply to you.<br><br>
             By checking the box below you confirm you understand and agree to these terms.</p>
@@ -2042,7 +2042,7 @@
         <button class="submit-btn incomplete" id="submitBtn" onclick="handleSubmitClick()">Submit Check-In</button>
     </div>
     
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
     // ========== LOADING STATE (shown during async config fetch) ==========
     function showLoadingState() {
         document.getElementById('surveyContainer').classList.add('hidden');
@@ -3111,29 +3111,37 @@
 
         // ========== ADDON INJECTION ==========
         function wireAddonElement(el) {
-            // Wire up VAS slider if present
-            const slider = el.querySelector('input[type="range"]');
-            const valueDisplay = el.querySelector('span[id$="Value"]');
-            if (slider && valueDisplay) {
+            // For addons with a timing wrapper (pre/post), el is the outer wrapper div.
+            // We need to wire each vas-item inside individually so the engaged class
+            // lands on the vas-item itself (where the CSS lives), not on the outer wrapper.
+            // For timing:'both' addons, el IS the vas-item — handle both cases.
+            const vasItems = el.classList.contains('vas-item')
+                ? [el]
+                : Array.from(el.querySelectorAll('.vas-item'));
+
+            vasItems.forEach(function(vasItem) {
+                const slider = vasItem.querySelector('input[type="range"]');
+                const valueDisplay = vasItem.querySelector('span[id$="Value"]');
+                if (!slider || !valueDisplay) return;
                 const doEngage = () => {
-                    el.classList.add('engaged');
-                    // Write current value on first engage — registers the field even if
-                    // the slider isn't dragged from its default center position.
+                    vasItem.classList.add('engaged');
                     if (slider.dataset.field && addonValues[slider.dataset.field] === undefined) {
                         addonValues[slider.dataset.field] = parseInt(slider.value);
                         updateProgress();
                     }
                 };
-                el.addEventListener('pointerdown', doEngage);
-                el.addEventListener('touchstart', doEngage, { passive: true });
+                vasItem.addEventListener('pointerdown', doEngage);
+                vasItem.addEventListener('touchstart', doEngage, { passive: true });
                 slider.addEventListener('input', () => {
                     doEngage();
                     valueDisplay.textContent = slider.value;
                     if (slider.dataset.field) addonValues[slider.dataset.field] = parseInt(slider.value);
                     updateProgress();
                 });
-            }
-            // Wire up select if present
+            });
+
+            // Wire singleSelect / multiSelect: handled by event delegation elsewhere.
+            // Wire select dropdowns if present.
             const select = el.querySelector('select');
             if (select) select.addEventListener('change', updateProgress);
         }
@@ -3201,10 +3209,12 @@
                 if (el.value) obj[el.dataset.field] = el.value;
             });
 
-            // Collect engaged addon VAS sliders
+            // Collect engaged addon VAS sliders — but only if not already captured as
+            // an integer in addonValues. el.value is always a string; addonValues stores
+            // the correctly-typed parseInt result, so we must not overwrite it here.
             document.querySelectorAll('.addon-engage-slider').forEach(el => {
                 if (el.dataset.field && addonValues[el.dataset.field] !== undefined) {
-                    obj[el.dataset.field] = el.value;
+                    obj[el.dataset.field] = addonValues[el.dataset.field]; // use typed value from addonValues
                 }
             });
 
@@ -4009,6 +4019,4 @@
                             <div class="grid-h"></div>
                             <div class="grid-v"></div>
                             <div class="example-marker" style="left: 78%; top: 22%;"></div>
-                            <div class="example-marker-label" style="left: 60%; top: 8%;">Happy &amp; energized</div>
-                            <div class="example-marker" style="left: 72%; top: 78%;"></div>
-                            <div class="example-marker-label" style="left: 52%; top: 85%;">Calm &amp; content<
+                            <div class="example-marker-label" style="left
