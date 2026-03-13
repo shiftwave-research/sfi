@@ -193,14 +193,16 @@
         .timing-lock-note {
             font-size: 0.7rem;
             color: #555;
-            margin-top: 6px;
+            margin-top: 10px;
             letter-spacing: 0.03em;
+            display: block;
         }
         /* Pre-session escape hatch link */
         .timing-escape {
             font-size: 0.72rem;
             color: #555;
-            margin-top: 7px;
+            margin-top: 10px;
+            margin-bottom: 4px;
             display: block;
         }
         .timing-escape a {
@@ -2107,6 +2109,12 @@
             },
 
             async flush() {
+                // Throttle: don't retry more than once every 30s to prevent a flapping
+                // connection (e.g. airplane WiFi) from burning through retry attempts rapidly.
+                const now = Date.now();
+                if (this._lastFlush && (now - this._lastFlush) < 30000) return 0;
+                this._lastFlush = now;
+
                 const queue = this.load();
                 if (queue.length === 0) return 0;
                 console.log('SFI: Flushing queue, items:', queue.length);
@@ -2127,7 +2135,7 @@
                     } catch (e) {
                         item.attempts += 1;
                         console.warn('SFI: Queued item retry failed, attempts:', item.attempts, e);
-                        if (item.attempts < 5) remaining.push(item); // drop after 5 attempts
+                        if (item.attempts < 25) remaining.push(item); // drop after 25 attempts (~12hrs at 30s interval)
                     }
                 }
                 this.save(remaining);
@@ -3515,10 +3523,24 @@
             
             // Always hide demographics on reset — already captured on first visit
             hideSection(document.getElementById('demographicsRow'));
-            // Reset female health blocks — updateCoreBlock will re-show appropriately for the new timing
+            // Hide female health blocks — updateCoreBlock (called by setTiming above) re-shows as needed.
+            // Do NOT call resetCoreFemaleBlock() here — addonValues was already cleared above, and
+            // core_hormonal_stage was just restored from sessionStorage for the attribution showIfAnswered gate.
+            // Calling resetCoreFemaleBlock() would delete it, hiding the attribution question after every click.
             hideSection(document.getElementById('coreFemalePreBlock'));
             hideSection(document.getElementById('coreFemalePostBlock'));
-            resetCoreFemaleBlock();
+            // Visual-only cleanup: deselect buttons and hide showif wrappers inside both blocks
+            ['coreFemalePreBlock','coreFemalePostBlock'].forEach(function(id) {
+                const bl = document.getElementById(id);
+                if (!bl) return;
+                bl.querySelectorAll('.addon-ss-btn.selected').forEach(b => b.classList.remove('selected'));
+                bl.querySelectorAll('.addon-showif').forEach(el => el.classList.add('hidden'));
+            });
+            // Reset opt-in gate so it re-appears fresh on next pre-session
+            const coreFemaleOptIn = document.getElementById('coreFemaleOptIn');
+            if (coreFemaleOptIn) coreFemaleOptIn.style.display = '';
+            const coreFemaleQs = document.getElementById('coreFemaleQuestions');
+            if (coreFemaleQs) hideSection(coreFemaleQs);
 
             // Show the form sections (name + protocol are intentionally preserved)
             if (!isAnonymousMode) document.getElementById('setupSection').classList.remove('hidden');
