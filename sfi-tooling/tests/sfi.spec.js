@@ -13,7 +13,7 @@
  *   SUPABASE_URL          Your Supabase project URL
  *   SUPABASE_ANON_KEY     Your Supabase anon key (legacy eyJ... format)
  *
- * The tests use a reserved test participant name "Test Participant" so real
+ * The tests use reserved participant names prefixed with "SFI Test" so real
  * submissions are never affected. Clean up test rows after each run if needed.
  */
 
@@ -31,9 +31,6 @@ function deploymentUrl(deployment) {
   return `${BASE_URL}/${HTML}?deployment=${deployment}`;
 }
 
-/**
- * Fetch the most recent row(s) from Supabase for a given deployment + participant.
- */
 async function fetchSupabaseRows(deployment, participantId, limit = 2) {
   if (!SUPABASE_URL || !SUPABASE_KEY) return null;
   const url = `${SUPABASE_URL}/rest/v1/sessions`
@@ -51,10 +48,6 @@ async function fetchSupabaseRows(deployment, participantId, limit = 2) {
   return res.json();
 }
 
-/**
- * Fill in all VAS sliders in the current view by moving each to a test value.
- * Clicks at ~30% position to avoid dead-center default.
- */
 async function fillVasSliders(page) {
   const sliders = page.locator('input[type="range"].vas-slider');
   const count = await sliders.count();
@@ -70,9 +63,6 @@ async function fillVasSliders(page) {
   }
 }
 
-/**
- * Fill all addon VAS sliders.
- */
 async function fillAddonVasSliders(page) {
   const sliders = page.locator('input[type="range"].addon-engage-slider');
   const count = await sliders.count();
@@ -88,9 +78,6 @@ async function fillAddonVasSliders(page) {
   }
 }
 
-/**
- * Select the first available option in every visible singleSelect and multiSelect group.
- */
 async function fillSelectButtons(page) {
   const groups = page.locator('.addon-ss-group:visible, .addon-ms-group:visible');
   const count = await groups.count();
@@ -103,33 +90,24 @@ async function fillSelectButtons(page) {
   }
 }
 
-/**
- * Fill all likert5 items by selecting rating 3.
- */
 async function fillLikert(page) {
   const groups = page.locator('.addon-l5-group:visible');
   const count = await groups.count();
   for (let i = 0; i < count; i++) {
     const btns = groups.nth(i).locator('.addon-l5-btn');
-    if (await btns.count() >= 3) await btns.nth(2).click(); // middle = 3
+    if (await btns.count() >= 3) await btns.nth(2).click();
   }
 }
 
-/**
- * Fill all NPS items by selecting 7.
- */
 async function fillNps(page) {
   const groups = page.locator('.addon-nps-group:visible');
   const count = await groups.count();
   for (let i = 0; i < count; i++) {
     const btns = groups.nth(i).locator('.addon-nps-btn');
-    if (await btns.count() >= 8) await btns.nth(7).click(); // index 7 = value 7
+    if (await btns.count() >= 8) await btns.nth(7).click();
   }
 }
 
-/**
- * Complete the full EmojiGrid interaction (click center of grid).
- */
 async function fillEmojiGrid(page) {
   const grid = page.locator('#emojiGridCanvas, canvas').first();
   if (await grid.isVisible()) {
@@ -140,9 +118,6 @@ async function fillEmojiGrid(page) {
   }
 }
 
-/**
- * Fill all STAI-6 items by selecting the first option.
- */
 async function fillStai(page) {
   const groups = page.locator('.stai-item:visible');
   const count = await groups.count();
@@ -152,9 +127,6 @@ async function fillStai(page) {
   }
 }
 
-/**
- * Fill the pain slider.
- */
 async function fillPainSlider(page) {
   const pain = page.locator('#painSlider');
   if (await pain.isVisible()) {
@@ -166,9 +138,6 @@ async function fillPainSlider(page) {
   }
 }
 
-/**
- * Complete a full survey form — fills all visible instruments.
- */
 async function fillSurveyForm(page) {
   await fillVasSliders(page);
   await fillAddonVasSliders(page);
@@ -180,20 +149,19 @@ async function fillSurveyForm(page) {
   await fillNps(page);
 }
 
-// ─── identified deployment flow ─────────────────────────────────────────────
+// ─── identified deployment flow ──────────────────────────────────────────────
 
 async function doIdentifiedPreSession(page, firstName, lastName, deployment) {
   await page.goto(deploymentUrl(deployment));
   await page.waitForLoadState('networkidle');
 
-  // Enter name and click Continue
   await page.fill('#firstName', firstName);
   await page.fill('#lastName', lastName);
   await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
   await page.locator('#nameContinueBtn').click();
   await page.waitForTimeout(1500);
 
-  // New participant: check both consent checkboxes then click Continue to Survey
+  // New participant: check consent checkboxes then proceed
   const consentBtn = page.locator('#consentBtn');
   if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
     await page.locator('#ageCheck').check();
@@ -202,14 +170,20 @@ async function doIdentifiedPreSession(page, firstName, lastName, deployment) {
     await consentBtn.click();
   }
 
-  // Set demographics if visible
+  // Fill demographics if visible
   const ageField = page.locator('#participantAge');
   if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
     await ageField.fill('32');
     await page.locator('#participantSex').selectOption('male');
   }
 
-  // Select pre timing if not already selected
+  // Wait for protocol/timing section to be revealed before interacting
+  await page.waitForFunction(
+    () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
+    null, { timeout: 10000 }
+  );
+
+  // Select pre timing
   const preBtn = page.locator('.timing-btn[data-timing="pre"]');
   if (await preBtn.isVisible()) await preBtn.click();
 
@@ -238,25 +212,21 @@ async function doIdentifiedPostSession(page, firstName, lastName, deployment) {
   await page.locator('#nameContinueBtn').click();
   await page.waitForTimeout(2000);
 
-  // Should land on post-session after lookup
   await fillSurveyForm(page);
   return submitAndCapture(page);
 }
 
-/**
- * Click submit and wait for success screen. Returns the session ID from the URL/storage.
- */
 async function submitAndCapture(page) {
-  const submitBtn = page.locator('#submitBtn, button:has-text("Submit")').first();
+  const submitBtn = page.locator('#submitBtn').first();
   await expect(submitBtn).toBeEnabled({ timeout: 5000 });
   await submitBtn.click();
 
-  // Wait for success screen or amber offline screen
-  await page.waitForSelector('.success-screen, .offline-success, #successScreen, [class*="success"]', {
-    timeout: 15000
-  });
+  // Wait for successContainer to shed its hidden class
+  await page.waitForFunction(
+    () => !document.getElementById('successContainer').classList.contains('hidden'),
+    null, { timeout: 15000 }
+  );
 
-  // Capture session ID from sessionStorage
   const sessionId = await page.evaluate(() =>
     sessionStorage.getItem('sfi_session_id') ||
     sessionStorage.getItem('sfi_session_url')
@@ -270,11 +240,12 @@ async function doAnonymousPreSession(page, deployment) {
   await page.goto(deploymentUrl(deployment));
   await page.waitForLoadState('networkidle');
 
-  // In anon mode the name/consent section is skipped entirely.
-  // Wait for the survey body to appear (timing buttons or first VAS item visible).
-  await page.waitForSelector('.timing-btn, .vas-item', { timeout: 10000 });
+  // In anon mode setupSection is hidden. Wait for protocolTimingSection to be revealed.
+  await page.waitForFunction(
+    () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
+    null, { timeout: 10000 }
+  );
 
-  // Select pre timing if shown
   const preBtn = page.locator('.timing-btn[data-timing="pre"]');
   if (await preBtn.isVisible({ timeout: 2000 }).catch(() => false)) await preBtn.click();
 
@@ -282,11 +253,8 @@ async function doAnonymousPreSession(page, deployment) {
   return submitAndCapture(page);
 }
 
-// ─── assertion helpers ───────────────────────────────────────────────────────
+// ─── assertion helpers ────────────────────────────────────────────────────────
 
-/**
- * Assert that all VAS fields in the row are integers (not strings).
- */
 function assertVasTypes(row, fields) {
   for (const field of fields) {
     const val = row[field] ?? (row.addons && JSON.parse(row.addons || '{}')[field]);
@@ -296,9 +264,6 @@ function assertVasTypes(row, fields) {
   }
 }
 
-/**
- * Assert that a pre/post pair share the same session_id.
- */
 function assertPairedSession(preRow, postRow) {
   expect(preRow.session_id).toBe(postRow.session_id);
 }
@@ -306,7 +271,7 @@ function assertPairedSession(preRow, postRow) {
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Config loads', () => {
-  // Note: deployment key must match the config filename (hyphens not underscores for womens-health-month)
+  // Note: deployment key must match the config filename (hyphens not underscores)
   for (const deployment of ['caa', 'spirit', 'mclaren', 'lafd', 'randi', 'suzanne', 'womens-health-month']) {
     test(`${deployment} — config loads without error`, async ({ page }) => {
       const errors = [];
@@ -317,15 +282,13 @@ test.describe('Config loads', () => {
       await page.goto(deploymentUrl(deployment));
       await page.waitForLoadState('networkidle');
 
-      // Config load error shows a hard stop screen
       const errorScreen = page.locator('[class*="config-error"], #configError, :text("Failed to load")');
       await expect(errorScreen).not.toBeVisible();
 
-      // Display name should appear somewhere on the page
       const displayNames = {
         caa: 'CAA', spirit: 'Washington Spirit', mclaren: 'McLaren',
         lafd: 'LAFD', randi: 'Randi', suzanne: 'Burnout',
-        'womens-health-month': "Women"  // partial match avoids apostrophe encoding issues
+        'womens-health-month': 'Women'
       };
       if (displayNames[deployment]) {
         await expect(page.locator(`text=${displayNames[deployment]}`).first()).toBeVisible({ timeout: 5000 });
@@ -337,29 +300,26 @@ test.describe('Config loads', () => {
 test.describe('Submission integrity — standard identified flow', () => {
   test('pre/post pair submits with correct field types and shared session_id', async ({ page }) => {
     const deployment = 'randi';
-    const firstName = 'SFI';
-    const lastName = 'TestUser';
 
-    // Pre-session
-    const sessionId = await doIdentifiedPreSession(page, firstName, lastName, deployment);
+    const sessionId = await doIdentifiedPreSession(page, 'SFI', 'TestUser', deployment);
     await page.waitForTimeout(1000);
 
-    // Post-session (same page, timing auto-locked to post)
+    // Post-session — timing auto-locked after pre submit
     await fillSurveyForm(page);
-    await page.locator('#submitBtn, button:has-text("Submit")').first().click();
-    await page.waitForSelector('.success-screen, #successScreen, [class*="success"]', { timeout: 15000 });
+    await page.locator('#submitBtn').first().click();
+    await page.waitForFunction(
+      () => !document.getElementById('successContainer').classList.contains('hidden'),
+      null, { timeout: 15000 }
+    );
 
-    // Supabase check
     if (SUPABASE_URL && SUPABASE_KEY) {
-      await page.waitForTimeout(2000); // allow server round-trip
-      const rows = await fetchSupabaseRows(deployment, 'P-001'); // adjust if your test participant gets a different ID
+      await page.waitForTimeout(2000);
+      const rows = await fetchSupabaseRows(deployment, 'P-001');
       if (rows && rows.length >= 2) {
         const preRow  = rows.find(r => r.timing === 'pre');
         const postRow = rows.find(r => r.timing === 'post');
-
         if (preRow && postRow) {
           assertPairedSession(preRow, postRow);
-          // Core VAS fields should be integers
           for (const row of [preRow, postRow]) {
             assertVasTypes(row, ['body_tension', 'energy', 'body_connection', 'clarity', 'mental_quiet', 'alertness']);
           }
@@ -387,8 +347,7 @@ test.describe('Submission integrity — anonymous flow', () => {
 
 test.describe('Addon field type integrity', () => {
   test('suzanne — VAS addon fields land as integers not strings', async ({ page }) => {
-    const deployment = 'suzanne';
-    await doIdentifiedPreSession(page, 'SFI', 'TestSuzanne', deployment);
+    await doIdentifiedPreSession(page, 'SFI', 'TestSuzanne', 'suzanne');
 
     if (SUPABASE_URL && SUPABASE_KEY) {
       await page.waitForTimeout(2000);
@@ -417,7 +376,6 @@ test.describe('Addon field type integrity', () => {
 
 test.describe('Female health block', () => {
   test('hormonal stage does not appear on post when skipped on pre', async ({ page }) => {
-    // Load fresh session as female participant
     await page.goto(deploymentUrl('randi'));
     await page.waitForLoadState('networkidle');
 
@@ -435,24 +393,41 @@ test.describe('Female health block', () => {
       await consentBtn.click();
     }
 
-    // Select female sex
     const sexSelect = page.locator('#participantSex');
     if (await sexSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
       await sexSelect.selectOption('female');
       await page.fill('#participantAge', '35');
     }
 
-    // Female health opt-in should appear — click Skip
+    // Skip the female health opt-in
     const skipBtn = page.locator('button:has-text("Skip"), [data-value="skip"]');
     if (await skipBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await skipBtn.click();
+    }
+
+    await page.waitForFunction(
+      () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
+      null, { timeout: 10000 }
+    );
+
+    const preBtn = page.locator('.timing-btn[data-timing="pre"]');
+    if (await preBtn.isVisible()) await preBtn.click();
+
+    const protocolInput = page.locator('#protocol');
+    await protocolInput.fill('Deep');
+    await page.waitForTimeout(500);
+    const firstSuggestion = page.locator('.protocol-list .protocol-option').first();
+    if (await firstSuggestion.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await firstSuggestion.click();
+    } else {
+      await protocolInput.fill('Deep Rest');
     }
 
     await fillSurveyForm(page);
     await submitAndCapture(page);
     await page.waitForTimeout(500);
 
-    // Now on post-session — hormonal change question should NOT be visible
+    // On post-session — hormonal change question should NOT be visible
     const hormoneChangeBlock = page.locator('[data-field="core_hormonal_change"], #addonItem_coreHormonalChange');
     await expect(hormoneChangeBlock).not.toBeVisible();
   });
@@ -482,16 +457,36 @@ test.describe('Offline queue', () => {
       await page.locator('#participantSex').selectOption('male');
     }
 
+    await page.waitForFunction(
+      () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
+      null, { timeout: 10000 }
+    );
+
+    const preBtn = page.locator('.timing-btn[data-timing="pre"]');
+    if (await preBtn.isVisible()) await preBtn.click();
+
+    const protocolInput = page.locator('#protocol');
+    await protocolInput.fill('Deep');
+    await page.waitForTimeout(500);
+    const firstSuggestion = page.locator('.protocol-list .protocol-option').first();
+    if (await firstSuggestion.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await firstSuggestion.click();
+    } else {
+      await protocolInput.fill('Deep Rest');
+    }
+
     await fillSurveyForm(page);
 
     // Go offline before submitting
     await context.setOffline(true);
-    await page.locator('#submitBtn, button:has-text("Submit")').first().click();
+    await page.locator('#submitBtn').first().click();
 
-    // Should show amber offline success screen
-    await page.waitForSelector('[class*="offline"], [class*="amber"], :text("saved")', { timeout: 10000 });
+    // Wait for queuedNote to shed its hidden class
+    await page.waitForFunction(
+      () => !document.getElementById('queuedNote').classList.contains('hidden'),
+      null, { timeout: 10000 }
+    );
 
-    // Verify item is in localStorage queue
     const queueLength = await page.evaluate(() => {
       const q = JSON.parse(localStorage.getItem('sfi_submission_queue') || '[]');
       return q.length;
@@ -500,9 +495,8 @@ test.describe('Offline queue', () => {
 
     // Come back online — queue should flush
     await context.setOffline(false);
-    await page.waitForTimeout(5000); // allow flush + retry throttle
+    await page.waitForTimeout(5000);
 
-    // Queue should now be empty (if network succeeds)
     const queueAfter = await page.evaluate(() => {
       const q = JSON.parse(localStorage.getItem('sfi_submission_queue') || '[]');
       return q.length;
