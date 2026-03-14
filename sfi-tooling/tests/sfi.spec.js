@@ -186,16 +186,19 @@ async function doIdentifiedPreSession(page, firstName, lastName, deployment) {
   await page.goto(deploymentUrl(deployment));
   await page.waitForLoadState('networkidle');
 
-  // Enter name
+  // Enter name and click Continue
   await page.fill('#firstName', firstName);
   await page.fill('#lastName', lastName);
-  await page.locator('#lookupBtn, button:has-text("Look up")').click();
+  await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
+  await page.locator('#nameContinueBtn').click();
   await page.waitForTimeout(1500);
 
-  // New participant: accept consent
+  // New participant: check both consent checkboxes then click Continue to Survey
   const consentBtn = page.locator('#consentBtn');
   if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await page.waitForFunction(() => !document.getElementById('consentBtn').disabled);
+    await page.locator('#ageCheck').check();
+    await page.locator('#consentCheck').check();
+    await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
     await consentBtn.click();
   }
 
@@ -231,7 +234,8 @@ async function doIdentifiedPostSession(page, firstName, lastName, deployment) {
 
   await page.fill('#firstName', firstName);
   await page.fill('#lastName', lastName);
-  await page.locator('#lookupBtn, button:has-text("Look up")').click();
+  await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
+  await page.locator('#nameContinueBtn').click();
   await page.waitForTimeout(2000);
 
   // Should land on post-session after lookup
@@ -266,10 +270,13 @@ async function doAnonymousPreSession(page, deployment) {
   await page.goto(deploymentUrl(deployment));
   await page.waitForLoadState('networkidle');
 
-  // Accept consent (always shown in anon mode)
-  const consentBtn = page.locator('#consentBtn');
-  await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 5000 });
-  await consentBtn.click();
+  // In anon mode the name/consent section is skipped entirely.
+  // Wait for the survey body to appear (timing buttons or first VAS item visible).
+  await page.waitForSelector('.timing-btn, .vas-item', { timeout: 10000 });
+
+  // Select pre timing if shown
+  const preBtn = page.locator('.timing-btn[data-timing="pre"]');
+  if (await preBtn.isVisible({ timeout: 2000 }).catch(() => false)) await preBtn.click();
 
   await fillSurveyForm(page);
   return submitAndCapture(page);
@@ -299,7 +306,8 @@ function assertPairedSession(preRow, postRow) {
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Config loads', () => {
-  for (const deployment of ['caa', 'spirit', 'mclaren', 'lafd', 'randi', 'suzanne', 'womens_health_month']) {
+  // Note: deployment key must match the config filename (hyphens not underscores for womens-health-month)
+  for (const deployment of ['caa', 'spirit', 'mclaren', 'lafd', 'randi', 'suzanne', 'womens-health-month']) {
     test(`${deployment} — config loads without error`, async ({ page }) => {
       const errors = [];
       page.on('console', msg => {
@@ -317,7 +325,7 @@ test.describe('Config loads', () => {
       const displayNames = {
         caa: 'CAA', spirit: 'Washington Spirit', mclaren: 'McLaren',
         lafd: 'LAFD', randi: 'Randi', suzanne: 'Burnout',
-        womens_health_month: "Women's Health Month"
+        'womens-health-month': "Women"  // partial match avoids apostrophe encoding issues
       };
       if (displayNames[deployment]) {
         await expect(page.locator(`text=${displayNames[deployment]}`).first()).toBeVisible({ timeout: 5000 });
@@ -415,12 +423,15 @@ test.describe('Female health block', () => {
 
     await page.fill('#firstName', 'SFI');
     await page.fill('#lastName', 'TestFemale');
-    await page.locator('#lookupBtn, button:has-text("Look up")').click();
+    await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
+    await page.locator('#nameContinueBtn').click();
     await page.waitForTimeout(1500);
 
     const consentBtn = page.locator('#consentBtn');
     if (await consentBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await page.waitForFunction(() => !document.getElementById('consentBtn').disabled);
+      await page.locator('#ageCheck').check();
+      await page.locator('#consentCheck').check();
+      await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
       await consentBtn.click();
     }
 
@@ -454,12 +465,15 @@ test.describe('Offline queue', () => {
 
     await page.fill('#firstName', 'SFI');
     await page.fill('#lastName', 'TestOffline');
-    await page.locator('#lookupBtn, button:has-text("Look up")').click();
+    await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
+    await page.locator('#nameContinueBtn').click();
     await page.waitForTimeout(1500);
 
     const consentBtn = page.locator('#consentBtn');
     if (await consentBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await page.waitForFunction(() => !document.getElementById('consentBtn').disabled);
+      await page.locator('#ageCheck').check();
+      await page.locator('#consentCheck').check();
+      await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
       await consentBtn.click();
     }
 
