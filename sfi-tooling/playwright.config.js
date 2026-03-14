@@ -6,11 +6,11 @@ module.exports = defineConfig({
   testDir: './tests',
   timeout: 30000,
   retries: 1,
-  workers: 1, // run sequentially — tests share Supabase state
+  workers: 1,
 
   use: {
     headless: true,
-    viewport: { width: 390, height: 844 }, // iPhone 14 — matches real participant usage
+    viewport: { width: 390, height: 844 },
     ignoreHTTPSErrors: true,
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -21,10 +21,11 @@ module.exports = defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'mobile',
-      use: { ...devices['iPhone 14'] },
-    }
+    // Uncomment after running: npx playwright install webkit
+    // {
+    //   name: 'mobile',
+    //   use: { ...devices['iPhone 14'] },
+    // }
   ],
 
   reporter: [
