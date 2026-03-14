@@ -38,9 +38,29 @@ function loadJSON(filePath) {
   }
 }
 
+/**
+ * Recursively strip optionalBlock markers from question arrays.
+ * These are HTML implementation markers, not question definitions,
+ * so the schema doesn't need to validate them.
+ */
+function stripOptionalBlockMarkers(obj) {
+  if (Array.isArray(obj)) {
+    return obj
+      .filter(item => !item.optionalBlock)
+      .map(item => stripOptionalBlockMarkers(item));
+  }
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, stripOptionalBlockMarkers(v)])
+    );
+  }
+  return obj;
+}
+
 function collectFields(questions, fields = []) {
   if (!Array.isArray(questions)) return fields;
   for (const q of questions) {
+    if (q.optionalBlock) continue; // skip HTML markers
     if (q.field) fields.push(q.field);
     if (q.type === 'conditional' && q.questions) {
       collectFields(q.questions, fields);
@@ -71,7 +91,8 @@ function crossReferenceChecks(config, errors) {
     }
   }
 
-  // 3. Field name uniqueness across all addons
+  // 3. Field name uniqueness — same field is allowed in addons with different timings
+  //    (e.g. sz_worn_out measured at both pre and post in separate addons)
   const allFields = [];
   for (const [key, addon] of Object.entries(addons)) {
     if (!addon.questions) continue;
@@ -79,9 +100,18 @@ function crossReferenceChecks(config, errors) {
     for (const field of fields) {
       const existing = allFields.find(f => f.field === field);
       if (existing) {
-        errors.push(`Duplicate field name "${field}" in addons["${key}"] — already used in addons["${existing.addon}"]`);
+        // Only flag as error if both addons have the same timing (or both are 'both')
+        const timingsOverlap = (
+          existing.timing === addon.timing ||
+          existing.timing === 'both' ||
+          addon.timing === 'both'
+        );
+        if (timingsOverlap) {
+          errors.push(`Duplicate field name "${field}" in addons["${key}"] — already used in addons["${existing.addon}"] with overlapping timing`);
+        }
+        // Different timings (pre vs post) = intentional, skip
       } else {
-        allFields.push({ field, addon: key });
+        allFields.push({ field, addon: key, timing: addon.timing });
       }
     }
   }
@@ -153,9 +183,11 @@ function validateFile(filePath, ajv, validate) {
     return results;
   }
 
-  // Skip _notes and other comment keys for schema validation
-  const cleanConfig = Object.fromEntries(
-    Object.entries(config).filter(([k]) => !k.startsWith('_'))
+  // Skip _notes and other comment keys; strip optionalBlock markers
+  const cleanConfig = stripOptionalBlockMarkers(
+    Object.fromEntries(
+      Object.entries(config).filter(([k]) => !k.startsWith('_'))
+    )
   );
 
   // JSON Schema validation
