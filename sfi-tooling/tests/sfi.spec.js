@@ -13,8 +13,7 @@
  *   SUPABASE_URL          Your Supabase project URL
  *   SUPABASE_ANON_KEY     Your Supabase anon key (legacy eyJ... format)
  *
- * The tests use reserved participant names prefixed with "SFI Test" so real
- * submissions are never affected. Clean up test rows after each run if needed.
+ * Test participants use names prefixed "SFI Test" — never affects real data.
  */
 
 const { test, expect } = require('@playwright/test');
@@ -25,7 +24,7 @@ const HTML         = process.env.SFI_HTML       || 'shiftwave-field-instrument.h
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
 function deploymentUrl(deployment) {
   return `${BASE_URL}/${HTML}?deployment=${deployment}`;
@@ -39,10 +38,7 @@ async function fetchSupabaseRows(deployment, participantId, limit = 2) {
     + `&order=received_at.desc`
     + `&limit=${limit}`;
   const res = await fetch(url, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`
-    }
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
   });
   if (!res.ok) return null;
   return res.json();
@@ -112,9 +108,7 @@ async function fillEmojiGrid(page) {
   const grid = page.locator('#emojiGridCanvas, canvas').first();
   if (await grid.isVisible()) {
     const box = await grid.boundingBox();
-    if (box) {
-      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    }
+    if (box) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   }
 }
 
@@ -149,54 +143,77 @@ async function fillSurveyForm(page) {
   await fillNps(page);
 }
 
-// ─── identified deployment flow ──────────────────────────────────────────────
-
-async function doIdentifiedPreSession(page, firstName, lastName, deployment) {
-  await page.goto(deploymentUrl(deployment));
-  await page.waitForLoadState('networkidle');
-
-  await page.fill('#firstName', firstName);
-  await page.fill('#lastName', lastName);
-  await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
-  await page.locator('#nameContinueBtn').click();
-  await page.waitForTimeout(1500);
-
-  // New participant: check consent checkboxes then proceed
-  const consentBtn = page.locator('#consentBtn');
-  if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-    await page.locator('#ageCheck').check();
-    await page.locator('#consentCheck').check();
-    await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
-    await consentBtn.click();
-  }
-
-  // Fill demographics if visible
-  const ageField = page.locator('#participantAge');
-  if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await ageField.fill('32');
-    await page.locator('#participantSex').selectOption('male');
-  }
-
-  // Wait for protocol/timing section to be revealed before interacting
-  await page.waitForFunction(
-    () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
-    null, { timeout: 10000 }
-  );
-
-  // Select pre timing
-  const preBtn = page.locator('.timing-btn[data-timing="pre"]');
-  if (await preBtn.isVisible()) await preBtn.click();
-
-  // Select a protocol
+async function selectProtocol(page) {
   const protocolInput = page.locator('#protocol');
   await protocolInput.fill('Deep');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(400);
   const firstSuggestion = page.locator('.protocol-list .protocol-option').first();
   if (await firstSuggestion.isVisible({ timeout: 2000 }).catch(() => false)) {
     await firstSuggestion.click();
   } else {
     await protocolInput.fill('Deep Rest');
   }
+}
+
+async function waitForProtocolSection(page) {
+  await page.waitForFunction(
+    () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
+    null, { timeout: 10000 }
+  );
+}
+
+async function submitAndCapture(page) {
+  const submitBtn = page.locator('#submitBtn').first();
+  await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+  await submitBtn.click();
+  await page.waitForFunction(
+    () => !document.getElementById('successContainer').classList.contains('hidden'),
+    null, { timeout: 15000 }
+  );
+  return page.evaluate(() =>
+    sessionStorage.getItem('sfi_session_id') ||
+    sessionStorage.getItem('sfi_session_url')
+  );
+}
+
+// ─── identified deployment flow ──────────────────────────────────────────────
+// KEY: demographics (age/sex) MUST be filled before clicking consentBtn.
+// acceptConsent() hides demographicsRow immediately on click.
+
+async function doIdentifiedPreSession(page, firstName, lastName, deployment) {
+  await page.goto(deploymentUrl(deployment));
+  await page.waitForLoadState('networkidle');
+
+  // Step 1: enter name and continue
+  await page.fill('#firstName', firstName);
+  await page.fill('#lastName', lastName);
+  await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
+  await page.locator('#nameContinueBtn').click();
+  await page.waitForTimeout(600);
+
+  // Step 2: if consent gate visible, fill demographics FIRST then accept consent
+  const consentBtn = page.locator('#consentBtn');
+  if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // Fill demographics while demographicsRow is still visible
+    const ageField = page.locator('#participantAge');
+    if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await ageField.fill('32');
+      await page.locator('#participantSex').selectOption('male');
+    }
+    // Now accept consent — acceptConsent() will hide demographicsRow
+    await page.locator('#ageCheck').check();
+    await page.locator('#consentCheck').check();
+    await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
+    await consentBtn.click();
+  }
+
+  // Step 3: wait for protocol/timing section to appear
+  await waitForProtocolSection(page);
+
+  // Step 4: select pre timing and protocol
+  const preBtn = page.locator('.timing-btn[data-timing="pre"]');
+  if (await preBtn.isVisible()) await preBtn.click();
+  await selectProtocol(page);
 
   await fillSurveyForm(page);
   return submitAndCapture(page);
@@ -210,41 +227,30 @@ async function doIdentifiedPostSession(page, firstName, lastName, deployment) {
   await page.fill('#lastName', lastName);
   await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
   await page.locator('#nameContinueBtn').click();
-  await page.waitForTimeout(2000);
+  await waitForProtocolSection(page);
 
   await fillSurveyForm(page);
   return submitAndCapture(page);
 }
 
-async function submitAndCapture(page) {
-  const submitBtn = page.locator('#submitBtn').first();
-  await expect(submitBtn).toBeEnabled({ timeout: 5000 });
-  await submitBtn.click();
-
-  // Wait for successContainer to shed its hidden class
-  await page.waitForFunction(
-    () => !document.getElementById('successContainer').classList.contains('hidden'),
-    null, { timeout: 15000 }
-  );
-
-  const sessionId = await page.evaluate(() =>
-    sessionStorage.getItem('sfi_session_id') ||
-    sessionStorage.getItem('sfi_session_url')
-  );
-  return sessionId;
-}
-
 // ─── anonymous deployment flow ───────────────────────────────────────────────
+// Anon mode hides setupSection but still shows consentGate on fresh load.
+// No demographics row in anon mode.
 
 async function doAnonymousPreSession(page, deployment) {
   await page.goto(deploymentUrl(deployment));
   await page.waitForLoadState('networkidle');
 
-  // In anon mode setupSection is hidden. Wait for protocolTimingSection to be revealed.
-  await page.waitForFunction(
-    () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
-    null, { timeout: 10000 }
-  );
+  // Consent gate appears automatically in anon mode (no name entry needed)
+  const consentBtn = page.locator('#consentBtn');
+  if (await consentBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await page.locator('#ageCheck').check();
+    await page.locator('#consentCheck').check();
+    await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
+    await consentBtn.click();
+  }
+
+  await waitForProtocolSection(page);
 
   const preBtn = page.locator('.timing-btn[data-timing="pre"]');
   if (await preBtn.isVisible({ timeout: 2000 }).catch(() => false)) await preBtn.click();
@@ -271,14 +277,8 @@ function assertPairedSession(preRow, postRow) {
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 test.describe('Config loads', () => {
-  // Note: deployment key must match the config filename (hyphens not underscores)
   for (const deployment of ['caa', 'spirit', 'mclaren', 'lafd', 'randi', 'suzanne', 'womens-health-month']) {
     test(`${deployment} — config loads without error`, async ({ page }) => {
-      const errors = [];
-      page.on('console', msg => {
-        if (msg.type() === 'error') errors.push(msg.text());
-      });
-
       await page.goto(deploymentUrl(deployment));
       await page.waitForLoadState('networkidle');
 
@@ -301,10 +301,10 @@ test.describe('Submission integrity — standard identified flow', () => {
   test('pre/post pair submits with correct field types and shared session_id', async ({ page }) => {
     const deployment = 'randi';
 
-    const sessionId = await doIdentifiedPreSession(page, 'SFI', 'TestUser', deployment);
+    await doIdentifiedPreSession(page, 'SFI', 'TestUser', deployment);
     await page.waitForTimeout(1000);
 
-    // Post-session — timing auto-locked after pre submit
+    // Post-session — timing auto-locked after pre submit, just fill and submit
     await fillSurveyForm(page);
     await page.locator('#submitBtn').first().click();
     await page.waitForFunction(
@@ -383,45 +383,31 @@ test.describe('Female health block', () => {
     await page.fill('#lastName', 'TestFemale');
     await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
     await page.locator('#nameContinueBtn').click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(600);
 
     const consentBtn = page.locator('#consentBtn');
-    if (await consentBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      // Fill demographics before consent — must happen while demographicsRow is visible
+      const ageField = page.locator('#participantAge');
+      if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await ageField.fill('35');
+        await page.locator('#participantSex').selectOption('female');
+      }
       await page.locator('#ageCheck').check();
       await page.locator('#consentCheck').check();
       await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
       await consentBtn.click();
     }
 
-    const sexSelect = page.locator('#participantSex');
-    if (await sexSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await sexSelect.selectOption('female');
-      await page.fill('#participantAge', '35');
-    }
+    await waitForProtocolSection(page);
 
-    // Skip the female health opt-in
+    // Skip the female health opt-in if it appears
     const skipBtn = page.locator('button:has-text("Skip"), [data-value="skip"]');
-    if (await skipBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await skipBtn.click();
-    }
-
-    await page.waitForFunction(
-      () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
-      null, { timeout: 10000 }
-    );
+    if (await skipBtn.isVisible({ timeout: 3000 }).catch(() => false)) await skipBtn.click();
 
     const preBtn = page.locator('.timing-btn[data-timing="pre"]');
     if (await preBtn.isVisible()) await preBtn.click();
-
-    const protocolInput = page.locator('#protocol');
-    await protocolInput.fill('Deep');
-    await page.waitForTimeout(500);
-    const firstSuggestion = page.locator('.protocol-list .protocol-option').first();
-    if (await firstSuggestion.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await firstSuggestion.click();
-    } else {
-      await protocolInput.fill('Deep Rest');
-    }
+    await selectProtocol(page);
 
     await fillSurveyForm(page);
     await submitAndCapture(page);
@@ -442,38 +428,26 @@ test.describe('Offline queue', () => {
     await page.fill('#lastName', 'TestOffline');
     await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
     await page.locator('#nameContinueBtn').click();
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(600);
 
     const consentBtn = page.locator('#consentBtn');
-    if (await consentBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      const ageField = page.locator('#participantAge');
+      if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await ageField.fill('28');
+        await page.locator('#participantSex').selectOption('male');
+      }
       await page.locator('#ageCheck').check();
       await page.locator('#consentCheck').check();
       await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
       await consentBtn.click();
     }
 
-    if (await page.locator('#participantAge').isVisible({ timeout: 2000 }).catch(() => false)) {
-      await page.fill('#participantAge', '28');
-      await page.locator('#participantSex').selectOption('male');
-    }
-
-    await page.waitForFunction(
-      () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
-      null, { timeout: 10000 }
-    );
+    await waitForProtocolSection(page);
 
     const preBtn = page.locator('.timing-btn[data-timing="pre"]');
     if (await preBtn.isVisible()) await preBtn.click();
-
-    const protocolInput = page.locator('#protocol');
-    await protocolInput.fill('Deep');
-    await page.waitForTimeout(500);
-    const firstSuggestion = page.locator('.protocol-list .protocol-option').first();
-    if (await firstSuggestion.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await firstSuggestion.click();
-    } else {
-      await protocolInput.fill('Deep Rest');
-    }
+    await selectProtocol(page);
 
     await fillSurveyForm(page);
 
