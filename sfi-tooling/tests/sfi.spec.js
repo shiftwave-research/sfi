@@ -53,7 +53,7 @@ async function fillVasSliders(page) {
       await slider.evaluate(el => {
         el.value = '30';
         el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       });
     }
   }
@@ -67,7 +67,7 @@ async function fillAddonVasSliders(page) {
     if (await slider.isVisible()) {
       await slider.evaluate(el => {
         el.value = '45';
-        el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
         el.dispatchEvent(new Event('input', { bubbles: true }));
       });
     }
@@ -105,7 +105,7 @@ async function fillNps(page) {
 }
 
 async function fillEmojiGrid(page) {
-  const grid = page.locator('#emojiGridCanvas, canvas').first();
+  const grid = page.locator('#emojiGrid');
   if (await grid.isVisible()) {
     const box = await grid.boundingBox();
     if (box) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
@@ -126,7 +126,7 @@ async function fillPainSlider(page) {
   if (await pain.isVisible()) {
     await pain.evaluate(el => {
       el.value = '20';
-      el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
@@ -155,26 +155,6 @@ async function selectProtocol(page) {
   }
 }
 
-/**
- * Wait for the result of the participant lookup — either consent gate appears
- * (new participant) or protocolTimingSection appears (returning participant).
- * Returns 'consent' or 'protocol'.
- */
-async function waitForLookupResult(page) {
-  await page.waitForFunction(() => {
-    const pts = document.getElementById('protocolTimingSection');
-    const cb  = document.getElementById('consentBtn');
-    const ptsVisible = pts && !pts.classList.contains('hidden');
-    const consentVisible = cb && cb.offsetParent !== null;
-    return ptsVisible || consentVisible;
-  }, null, { timeout: 15000 });
-
-  const protocolVisible = await page.evaluate(() =>
-    !document.getElementById('protocolTimingSection').classList.contains('hidden')
-  );
-  return protocolVisible ? 'protocol' : 'consent';
-}
-
 async function waitForProtocolSection(page) {
   await page.waitForFunction(
     () => !document.getElementById('protocolTimingSection').classList.contains('hidden'),
@@ -197,6 +177,8 @@ async function submitAndCapture(page) {
 }
 
 // ─── identified deployment flow ──────────────────────────────────────────────
+// KEY: demographics (age/sex) MUST be filled before clicking consentBtn.
+// acceptConsent() hides demographicsRow immediately on click.
 
 async function doIdentifiedPreSession(page, firstName, lastName, deployment) {
   await page.goto(deploymentUrl(deployment));
@@ -207,27 +189,28 @@ async function doIdentifiedPreSession(page, firstName, lastName, deployment) {
   await page.fill('#lastName', lastName);
   await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
   await page.locator('#nameContinueBtn').click();
+  await page.waitForTimeout(600);
 
-  // Step 2: wait for lookup to complete — either consent gate or protocol section
-  const result = await waitForLookupResult(page);
-
-  if (result === 'consent') {
-    // New participant: fill demographics BEFORE accepting consent
-    // (acceptConsent() hides demographicsRow immediately on click)
+  // Step 2: if consent gate visible, fill demographics FIRST then accept consent
+  const consentBtn = page.locator('#consentBtn');
+  if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // Fill demographics while demographicsRow is still visible
     const ageField = page.locator('#participantAge');
     if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
       await ageField.fill('32');
       await page.locator('#participantSex').selectOption('male');
     }
+    // Now accept consent — acceptConsent() will hide demographicsRow
     await page.locator('#ageCheck').check();
     await page.locator('#consentCheck').check();
     await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
-    await page.locator('#consentBtn').click();
-    await waitForProtocolSection(page);
+    await consentBtn.click();
   }
-  // returning participant lands directly on protocol section — no consent needed
 
-  // Step 3: select pre timing and protocol
+  // Step 3: wait for protocol/timing section to appear
+  await waitForProtocolSection(page);
+
+  // Step 4: select pre timing and protocol
   const preBtn = page.locator('.timing-btn[data-timing="pre"]');
   if (await preBtn.isVisible()) await preBtn.click();
   await selectProtocol(page);
@@ -251,21 +234,23 @@ async function doIdentifiedPostSession(page, firstName, lastName, deployment) {
 }
 
 // ─── anonymous deployment flow ───────────────────────────────────────────────
+// Anon mode hides setupSection but still shows consentGate on fresh load.
+// No demographics row in anon mode.
 
 async function doAnonymousPreSession(page, deployment) {
   await page.goto(deploymentUrl(deployment));
   await page.waitForLoadState('networkidle');
 
-  // Anon mode calls showConsentGate() automatically on load — wait for it
-  const result = await waitForLookupResult(page);
-
-  if (result === 'consent') {
+  // Consent gate appears automatically in anon mode (no name entry needed)
+  const consentBtn = page.locator('#consentBtn');
+  if (await consentBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
     await page.locator('#ageCheck').check();
     await page.locator('#consentCheck').check();
     await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
-    await page.locator('#consentBtn').click();
-    await waitForProtocolSection(page);
+    await consentBtn.click();
   }
+
+  await waitForProtocolSection(page);
 
   const preBtn = page.locator('.timing-btn[data-timing="pre"]');
   if (await preBtn.isVisible({ timeout: 2000 }).catch(() => false)) await preBtn.click();
@@ -319,7 +304,7 @@ test.describe('Submission integrity — standard identified flow', () => {
     await doIdentifiedPreSession(page, 'SFI', 'TestUser', deployment);
     await page.waitForTimeout(1000);
 
-    // Post-session — timing auto-locked after pre submit
+    // Post-session — timing auto-locked after pre submit, just fill and submit
     await fillSurveyForm(page);
     await page.locator('#submitBtn').first().click();
     await page.waitForFunction(
@@ -398,10 +383,11 @@ test.describe('Female health block', () => {
     await page.fill('#lastName', 'TestFemale');
     await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
     await page.locator('#nameContinueBtn').click();
+    await page.waitForTimeout(600);
 
-    const result = await waitForLookupResult(page);
-
-    if (result === 'consent') {
+    const consentBtn = page.locator('#consentBtn');
+    if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      // Fill demographics before consent — must happen while demographicsRow is visible
       const ageField = page.locator('#participantAge');
       if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
         await ageField.fill('35');
@@ -410,9 +396,10 @@ test.describe('Female health block', () => {
       await page.locator('#ageCheck').check();
       await page.locator('#consentCheck').check();
       await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
-      await page.locator('#consentBtn').click();
-      await waitForProtocolSection(page);
+      await consentBtn.click();
     }
+
+    await waitForProtocolSection(page);
 
     // Skip the female health opt-in if it appears
     const skipBtn = page.locator('button:has-text("Skip"), [data-value="skip"]');
@@ -426,6 +413,7 @@ test.describe('Female health block', () => {
     await submitAndCapture(page);
     await page.waitForTimeout(500);
 
+    // On post-session — hormonal change question should NOT be visible
     const hormoneChangeBlock = page.locator('[data-field="core_hormonal_change"], #addonItem_coreHormonalChange');
     await expect(hormoneChangeBlock).not.toBeVisible();
   });
@@ -440,10 +428,10 @@ test.describe('Offline queue', () => {
     await page.fill('#lastName', 'TestOffline');
     await page.waitForFunction(() => !document.getElementById('nameContinueBtn').disabled, null, { timeout: 5000 });
     await page.locator('#nameContinueBtn').click();
+    await page.waitForTimeout(600);
 
-    const result = await waitForLookupResult(page);
-
-    if (result === 'consent') {
+    const consentBtn = page.locator('#consentBtn');
+    if (await consentBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       const ageField = page.locator('#participantAge');
       if (await ageField.isVisible({ timeout: 2000 }).catch(() => false)) {
         await ageField.fill('28');
@@ -452,9 +440,10 @@ test.describe('Offline queue', () => {
       await page.locator('#ageCheck').check();
       await page.locator('#consentCheck').check();
       await page.waitForFunction(() => !document.getElementById('consentBtn').disabled, null, { timeout: 3000 });
-      await page.locator('#consentBtn').click();
-      await waitForProtocolSection(page);
+      await consentBtn.click();
     }
+
+    await waitForProtocolSection(page);
 
     const preBtn = page.locator('.timing-btn[data-timing="pre"]');
     if (await preBtn.isVisible()) await preBtn.click();
