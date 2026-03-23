@@ -1,4 +1,4 @@
-/**
+\/**
  * SFI End-to-End Tests
  *
  * Usage:
@@ -8,6 +8,14 @@
  *
  * Env vars (.env):
  *   SFI_BASE_URL, SFI_HTML, SUPABASE_URL, SUPABASE_ANON_KEY
+ *
+ * Test data cleanup:
+ *   - sessions rows tagged comment='__SFI_TEST__' are auto-deleted in afterAll
+ *     (requires RLS policy: anon can DELETE WHERE comment = '__SFI_TEST__')
+ *   - participant_keys rows must be cleaned manually in Supabase dashboard:
+ *     DELETE FROM participant_keys
+ *     WHERE name_normalized IN
+ *       ('sfi testuser','sfi testsuzanne','sfi testfemale','sfi testoffline');
  */
 
 const { test, expect } = require('@playwright/test');
@@ -38,12 +46,40 @@ async function fetchSupabaseRows(deployment, participantId, limit = 2) {
 }
 
 /**
+ * Delete all sessions rows tagged as test data.
+ * Requires RLS policy: anon can DELETE ON sessions WHERE comment = '__SFI_TEST__'
+ * Run once in afterAll — cleans up all test rows from the full suite run.
+ */
+async function deleteTestSessions() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) return;
+  const url = `${SUPABASE_URL}/rest/v1/sessions?comment=eq.__SFI_TEST__`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Prefer': 'return=minimal'
+    }
+  });
+  if (!res.ok) {
+    console.warn('Test session cleanup failed — HTTP', res.status);
+  } else {
+    console.log('Test session rows deleted successfully.');
+  }
+}
+
+/**
  * Fill the entire survey form by directly setting formData and addonValues
  * in the page context, then calling updateProgress(). This is more reliable
  * than synthetic DOM events which don't always reach the SFI's event listeners.
+ *
+ * Sets comment = '__SFI_TEST__' so rows are identifiable and auto-deleted in afterAll.
  */
 async function fillSurveyForm(page) {
   await page.evaluate(() => {
+    // Tag this submission as test data for auto-cleanup
+    formData.comment = '__SFI_TEST__';
+
     // Core VAS sliders (bodyTension, energy, bodyConnection, clarity, mentalQuiet, alertness)
     ['bodyTension', 'energy', 'bodyConnection', 'clarity', 'mentalQuiet', 'alertness'].forEach(id => {
       formData[id] = 30;
@@ -314,6 +350,10 @@ test.describe('Config loads', () => {
 });
 
 test.describe('Submission integrity — standard identified flow', () => {
+  test.afterAll(async () => {
+    await deleteTestSessions();
+  });
+
   test('pre/post pair submits with correct field types and shared session_id', async ({ page }) => {
     const deployment = 'randi';
 
@@ -353,6 +393,10 @@ test.describe('Submission integrity — standard identified flow', () => {
 });
 
 test.describe('Submission integrity — anonymous flow', () => {
+  test.afterAll(async () => {
+    await deleteTestSessions();
+  });
+
   test('anon pre-session submits with ANON participant_id', async ({ page }) => {
     await doAnonymousPreSession(page, 'lafd');
 
@@ -369,6 +413,10 @@ test.describe('Submission integrity — anonymous flow', () => {
 });
 
 test.describe('Addon field type integrity', () => {
+  test.afterAll(async () => {
+    await deleteTestSessions();
+  });
+
   test('suzanne — VAS addon fields land as integers not strings', async ({ page }) => {
     await doIdentifiedPreSession(page, 'SFI', 'TestSuzanne', 'suzanne');
 
@@ -395,6 +443,10 @@ test.describe('Addon field type integrity', () => {
 });
 
 test.describe('Female health block', () => {
+  test.afterAll(async () => {
+    await deleteTestSessions();
+  });
+
   test('hormonal stage does not appear on post when skipped on pre', async ({ page }) => {
     await page.goto(deploymentUrl('randi'));
     await page.waitForLoadState('networkidle');
@@ -427,6 +479,10 @@ test.describe('Female health block', () => {
 });
 
 test.describe('Offline queue', () => {
+  test.afterAll(async () => {
+    await deleteTestSessions();
+  });
+
   test('submission is queued when offline and flushed on reconnect', async ({ page, context }) => {
     // Capture browser console so we can see flush errors if the test fails
     const consoleLogs = [];
