@@ -1,4 +1,4 @@
-\/**
+/**
  * SFI End-to-End Tests
  *
  * Usage:
