@@ -325,6 +325,11 @@ test.describe('Submission integrity — standard identified flow', () => {
       () => !document.getElementById('surveyBody').classList.contains('hidden'),
       null, { timeout: 10000 }
     );
+    // Re-sync window refs — resetForm() reassigns formData and addonValues closures
+    await page.evaluate(() => {
+      window.formData = formData;
+      window.addonValues = addonValues;
+    });
 
     // Post-session — timing auto-locked after pre submit
     await fillSurveyForm(page);
@@ -423,6 +428,10 @@ test.describe('Female health block', () => {
 
 test.describe('Offline queue', () => {
   test('submission is queued when offline and flushed on reconnect', async ({ page, context }) => {
+    // Capture browser console so we can see flush errors if the test fails
+    const consoleLogs = [];
+    page.on('console', msg => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
+
     await page.goto(deploymentUrl('randi'));
     await page.waitForLoadState('networkidle');
 
@@ -464,12 +473,29 @@ test.describe('Offline queue', () => {
     expect(queueLength).toBeGreaterThan(0);
 
     await context.setOffline(false);
-    // SFI has a 30s throttle between flush attempts — wait long enough
-    await page.waitForTimeout(35000);
 
-    const queueAfter = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('sfi_submission_queue') || '[]').length
-    );
-    expect(queueAfter).toBe(0);
+    // Reset throttle and await the flush fully before checking localStorage.
+    // flush() is async — not awaiting it caused a race where waitForFunction
+    // would start polling before the fetch completed.
+    const flushResult = await page.evaluate(async () => {
+      SubmissionQueue._lastFlush = 0;
+      const remaining = await SubmissionQueue.flush();
+      return {
+        remaining,
+        queue: JSON.parse(localStorage.getItem('sfi_submission_queue') || '[]')
+      };
+    });
+
+    // Log the queued payload if flush didn't clear it — helps diagnose Edge Function errors
+    if (flushResult.remaining > 0) {
+      console.log('=== OFFLINE FLUSH DIAGNOSTIC ===');
+      console.log('Remaining after flush:', flushResult.remaining);
+      console.log('Queue contents:', JSON.stringify(flushResult.queue, null, 2));
+      console.log('Browser console during test:');
+      consoleLogs.forEach(l => console.log(' ', l));
+      console.log('================================');
+    }
+
+    expect(flushResult.remaining, 'Queue should be empty after flush — check diagnostic output above').toBe(0);
   });
 });
