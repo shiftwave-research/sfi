@@ -25,6 +25,10 @@ const BASE_URL     = process.env.SFI_BASE_URL  || 'https://shiftwave-research.gi
 const HTML         = process.env.SFI_HTML       || 'shiftwave-field-instrument.html';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+// SUPABASE_URL points to the Edge Function — strip that suffix to get the REST API base
+const SUPABASE_REST = SUPABASE_URL
+  ? SUPABASE_URL.replace(/\/functions\/v1\/.*$/, '')
+  : null;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -33,8 +37,8 @@ function deploymentUrl(d) {
 }
 
 async function fetchSupabaseRows(deployment, participantId, limit = 2) {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return null;
-  const url = `${SUPABASE_URL}/rest/v1/sessions`
+  if (!SUPABASE_REST || !SUPABASE_KEY) return null;
+  const url = `${SUPABASE_REST}/rest/v1/sessions`
     + `?deployment_id=eq.${deployment}`
     + `&participant_id=eq.${participantId}`
     + `&order=received_at.desc&limit=${limit}`;
@@ -51,8 +55,8 @@ async function fetchSupabaseRows(deployment, participantId, limit = 2) {
  * Run once in afterAll — cleans up all test rows from the full suite run.
  */
 async function deleteTestSessions() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) return;
-  const url = `${SUPABASE_URL}/rest/v1/sessions?comment=eq.__SFI_TEST__`;
+  if (!SUPABASE_REST || !SUPABASE_KEY) return;
+  const url = `${SUPABASE_REST}/rest/v1/sessions?comment=eq.__SFI_TEST__`;
   const res = await fetch(url, {
     method: 'DELETE',
     headers: {
@@ -378,7 +382,7 @@ test.describe('Submission integrity — standard identified flow', () => {
     await fillSurveyForm(page);
     await waitForReadyThenSubmit(page);
 
-    if (SUPABASE_URL && SUPABASE_KEY) {
+    if (SUPABASE_REST && SUPABASE_KEY) {
       await page.waitForTimeout(2000);
       const rows = await fetchSupabaseRows(deployment, 'P-001');
       if (rows && rows.length >= 2) {
@@ -403,9 +407,9 @@ test.describe('Submission integrity — anonymous flow', () => {
   test('anon pre-session submits with ANON participant_id', async ({ page }) => {
     await doAnonymousPreSession(page, 'lafd');
 
-    if (SUPABASE_URL && SUPABASE_KEY) {
+    if (SUPABASE_REST && SUPABASE_KEY) {
       await page.waitForTimeout(2000);
-      const url = `${SUPABASE_URL}/rest/v1/sessions?deployment_id=eq.lafd&order=received_at.desc&limit=1`;
+      const url = `${SUPABASE_REST}/rest/v1/sessions?deployment_id=eq.lafd&order=received_at.desc&limit=1`;
       const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
       if (res.ok) {
         const [row] = await res.json();
@@ -423,9 +427,9 @@ test.describe('Addon field type integrity', () => {
   test('suzanne — VAS addon fields land as integers not strings', async ({ page }) => {
     await doIdentifiedPreSession(page, 'SFI', 'TestSuzanne', 'suzanne');
 
-    if (SUPABASE_URL && SUPABASE_KEY) {
+    if (SUPABASE_REST && SUPABASE_KEY) {
       await page.waitForTimeout(2000);
-      const url = `${SUPABASE_URL}/rest/v1/sessions?deployment_id=eq.suzanne&order=received_at.desc&limit=1`;
+      const url = `${SUPABASE_REST}/rest/v1/sessions?deployment_id=eq.suzanne&order=received_at.desc&limit=1`;
       const res = await fetch(url, { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } });
       if (res.ok) {
         const [row] = await res.json();
