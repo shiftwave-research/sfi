@@ -55,7 +55,9 @@ async function fetchSupabaseRows(deployment, participantId, limit = 2) {
  * Run once in afterAll — cleans up all test rows from the full suite run.
  */
 async function deleteTestSessions() {
-  if (!SUPABASE_REST || !SUPABASE_KEY) return;
+  if (!SUPABASE_REST || !SUPABASE_KEY) {
+    throw new Error('deleteTestSessions: SUPABASE_REST or SUPABASE_KEY missing');
+  }
   const url = `${SUPABASE_REST}/rest/v1/sessions?comment=eq.__SFI_TEST__`;
   const res = await fetch(url, {
     method: 'DELETE',
@@ -65,10 +67,9 @@ async function deleteTestSessions() {
       'Prefer': 'return=minimal'
     }
   });
+  const body = await res.text();
   if (!res.ok) {
-    console.warn('Test session cleanup failed — HTTP', res.status);
-  } else {
-    console.log('Test session rows deleted successfully.');
+    throw new Error(`deleteTestSessions failed — HTTP ${res.status}: ${body}`);
   }
 }
 
