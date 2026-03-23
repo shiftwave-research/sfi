@@ -318,7 +318,13 @@ test.describe('Submission integrity — standard identified flow', () => {
     const deployment = 'randi';
 
     await doIdentifiedPreSession(page, 'SFI', 'TestUser', deployment);
-    await page.waitForTimeout(1000);
+
+    // After pre-session, click through to post-session
+    await page.locator('#successBtn').click();
+    await page.waitForFunction(
+      () => !document.getElementById('surveyBody').classList.contains('hidden'),
+      null, { timeout: 10000 }
+    );
 
     // Post-session — timing auto-locked after pre submit
     await fillSurveyForm(page);
@@ -458,7 +464,8 @@ test.describe('Offline queue', () => {
     expect(queueLength).toBeGreaterThan(0);
 
     await context.setOffline(false);
-    await page.waitForTimeout(5000);
+    // SFI has a 30s throttle between flush attempts — wait long enough
+    await page.waitForTimeout(35000);
 
     const queueAfter = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('sfi_submission_queue') || '[]').length
