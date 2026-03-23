@@ -163,7 +163,11 @@ async function waitForProtocolSection(page, timeout = 10000) {
 
 async function submitAndCapture(page) {
   const btn = page.locator('#submitBtn').first();
-  await expect(btn).toBeEnabled({ timeout: 5000 });
+  // Wait for ready class — button is never disabled, just incomplete vs ready
+  await page.waitForFunction(
+    () => document.getElementById('submitBtn').classList.contains('ready'),
+    null, { timeout: 15000 }
+  );
   await btn.click();
   await page.waitForFunction(
     () => !document.getElementById('successContainer').classList.contains('hidden'),
