@@ -79,6 +79,9 @@ async function fillSurveyForm(page) {
   await page.evaluate(() => {
     // Tag this submission as test data for auto-cleanup
     formData.comment = '__SFI_TEST__';
+    // Also set the DOM textarea — submit handler reads getElementById('comment').value directly
+    const commentEl = document.getElementById('comment');
+    if (commentEl) commentEl.value = '__SFI_TEST__';
 
     // Core VAS sliders (bodyTension, energy, bodyConnection, clarity, mentalQuiet, alertness)
     ['bodyTension', 'energy', 'bodyConnection', 'clarity', 'mentalQuiet', 'alertness'].forEach(id => {
