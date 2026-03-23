@@ -3580,6 +3580,9 @@
             document.getElementById('completionStatus').textContent = 'Complete all items to submit';
             document.getElementById('completionStatus').classList.remove('complete');
             
+            window.formData = formData;
+            window.addonValues = addonValues;
+            
             window.scrollTo(0, 0);
         }
         
@@ -4001,6 +4004,7 @@
         window.formData = formData;
         window.addonValues = addonValues;
         window.updateProgress = updateProgress;
+        window.SubmissionQueue = SubmissionQueue;
     }
 
     document.addEventListener('DOMContentLoaded', initSFI);
