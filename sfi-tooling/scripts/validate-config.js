@@ -6,7 +6,7 @@
  *
  * Usage:
  *   node scripts/validate-config.js                  # validate all configs/
- *   node scripts/validate-config.js configs/caa.json # validate one file
+ *   node scripts/validate-config.js ../configs/caa.json # validate one file
  */
 
 const fs = require('fs');
@@ -14,7 +14,7 @@ const path = require('path');
 const Ajv = require('ajv');
 
 const SCHEMA_PATH = path.join(__dirname, '../schemas/config.schema.json');
-const CONFIGS_DIR = path.join(__dirname, '../configs');
+const CONFIGS_DIR = path.join(__dirname, '../../configs');
 
 // Valid insertAfter anchors — must match the IDs in the HTML
 const VALID_ANCHORS = new Set([

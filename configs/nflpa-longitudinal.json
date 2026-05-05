@@ -1,0 +1,9 @@
+{
+  "preset": {
+    "displayName": "NFLPA Longitudinal",
+    "studyTag": "nflpa_longitudinal_2026",
+    "anonymousMode": false,
+    "addons": []
+  },
+  "addons": {}
+}

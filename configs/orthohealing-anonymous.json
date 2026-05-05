@@ -1,0 +1,9 @@
+{
+  "preset": {
+    "displayName": "OrthoHealing Anonymous",
+    "studyTag": "orthohealing_anonymous_2026",
+    "anonymousMode": true,
+    "addons": []
+  },
+  "addons": {}
+}
