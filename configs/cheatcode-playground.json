@@ -1,0 +1,9 @@
+{
+  "preset": {
+    "displayName": "Cheatcode Playground",
+    "studyTag": "cheatcode_playground",
+    "anonymousMode": false,
+    "addons": []
+  },
+  "addons": {}
+}
