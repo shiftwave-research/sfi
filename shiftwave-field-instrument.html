@@ -2497,7 +2497,7 @@
             // Timing only locks during the in-session pre→post transition via resetForm().
             const banner = document.getElementById('welcomeBanner');
             const pts    = document.getElementById('protocolTimingSection');
-            banner.textContent = '\u2713 Welcome back \u2014 consent on file';
+            banner.textContent = "\u2713 Welcome back! If this is your first time and you're receiving this message, this name is taken.";
             revealSection(banner, 0);
             revealSection(pts, 250);
             setTimeout(function() {
