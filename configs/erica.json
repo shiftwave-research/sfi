@@ -1,0 +1,154 @@
+{
+  "preset": {
+    "displayName": "Erica Ellis",
+    "studyTag": "erica_2026",
+    "anonymousMode": false,
+    "addons": ["intake"]
+  },
+  "addons": {
+    "intake": {
+      "insertAfter": "surveyBodyStart",
+      "timing": "pre",
+      "questions": [
+        { "type": "sectionHeader", "label": "Background" },
+        {
+          "type": "sectionDescription",
+          "html": "These questions are asked once and won't appear on your return visits.<br><span style=\"color:#888\">All items are optional — skip anything you'd rather not answer.</span>"
+        },
+
+        {
+          "type": "singleSelect",
+          "field": "ericaMHRole",
+          "blockId": "ericaMHRoleBlock",
+          "skipIfReturning": true,
+          "required": false,
+          "conditionalTarget": "ericaMHRoleDetail",
+          "question": "Do you work in mental or behavioral health?",
+          "options": [
+            { "value": "yes", "label": "Yes" },
+            { "value": "no",  "label": "No" }
+          ]
+        },
+
+        {
+          "type": "conditional",
+          "id": "ericaMHRoleDetail",
+          "questions": [
+            {
+              "type": "multiSelect",
+              "field": "ericaMHRoleTypes",
+              "required": false,
+              "question": "What is your role? (Select all that apply)",
+              "exclusiveValue": "prefer_not",
+              "options": [
+                { "value": "psychiatrist",                "label": "Psychiatrist" },
+                { "value": "psychologist",                "label": "Psychologist" },
+                { "value": "neuropsychologist",           "label": "Neuropsychologist" },
+                { "value": "therapist_counselor",         "label": "Therapist / Counselor" },
+                { "value": "training_therapist",          "label": "Training Therapist" },
+                { "value": "social_worker",               "label": "Social Worker" },
+                { "value": "student",                     "label": "Student" },
+                { "value": "peer_counselor",              "label": "Peer Counselor" },
+                { "value": "personal_coach",              "label": "Personal Coach" },
+                { "value": "executive_coach",             "label": "Executive Coach" },
+                { "value": "crisis_counselor",            "label": "Crisis Counselor" },
+                { "value": "crisis_intervention",         "label": "Crisis Intervention Specialist" },
+                { "value": "psych_np",                    "label": "Psychiatric Nurse Practitioner" },
+                { "value": "outreach_worker",             "label": "Outreach Worker" },
+                { "value": "recovery_coach",              "label": "Recovery Coach" },
+                { "value": "intake_coordinator",          "label": "Intake Coordinator" },
+                { "value": "rehab_iop_therapist",         "label": "Rehab / Inpatient / IOP Therapist" },
+                { "value": "rehab_iop_worker",            "label": "Rehab / Inpatient / IOP Worker" },
+                { "value": "education_specialist",        "label": "Education Specialist / Consultant" },
+                { "value": "school_counselor",            "label": "School-Based Counselor / Psychologist" },
+                { "value": "case_manager",                "label": "Case Manager" },
+                { "value": "care_coordinator",            "label": "Care Coordinator" },
+                { "value": "program_director",            "label": "Program Director / Manager / Coordinator" },
+                { "value": "mh_administrator",            "label": "Mental Health Administrator" },
+                { "value": "bh_administrator",            "label": "Behavioral Health Administrator" },
+                { "value": "other",                       "label": "Other" },
+                { "value": "prefer_not",                  "label": "Prefer not to say" }
+              ]
+            }
+          ]
+        },
+
+        {
+          "type": "multiSelect",
+          "field": "ericaConditions",
+          "blockId": "ericaConditionsBlock",
+          "skipIfReturning": true,
+          "required": false,
+          "question": "Have you been diagnosed with, or experienced symptoms of, any of the following?",
+          "hint": "Select all that apply. This is optional.",
+          "exclusiveValues": ["none", "prefer_not"],
+          "options": [
+            { "value": "adhd",                "label": "ADHD" },
+            { "value": "dyslexia",            "label": "Dyslexia" },
+            { "value": "asd",                 "label": "Autism Spectrum Disorder" },
+            { "value": "learning_disability", "label": "Learning Disabilities" },
+            { "value": "sensory_sensitivity", "label": "Sensory Sensitivity" },
+            { "value": "executive_function",  "label": "Executive Function Impairments" },
+            { "value": "other_neurodiv",      "label": "Other Neurodivergence" },
+            { "value": "gad",                 "label": "Generalized Anxiety" },
+            { "value": "social_anxiety",      "label": "Social Anxiety" },
+            { "value": "phobias",             "label": "Phobias" },
+            { "value": "panic",               "label": "Panic Attacks / Panic Disorder" },
+            { "value": "ocd",                 "label": "OCD" },
+            { "value": "trauma",              "label": "Trauma" },
+            { "value": "attachment",          "label": "Attachment Issues" },
+            { "value": "dissociation",        "label": "Dissociation" },
+            { "value": "depersonalization",   "label": "Depersonalization" },
+            { "value": "stress",              "label": "Stress" },
+            { "value": "burnout",             "label": "Burnout" },
+            { "value": "sexual_dysfunction",  "label": "Sexual Dysfunction / Issues" },
+            { "value": "adrenal_fatigue",     "label": "Adrenal Fatigue" },
+            { "value": "somatic_pain",        "label": "Somatic Pain" },
+            { "value": "cfs",                 "label": "Chronic Fatigue Syndrome" },
+            { "value": "fibromyalgia",        "label": "Fibromyalgia" },
+            { "value": "autoimmune",          "label": "Autoimmune Issues" },
+            { "value": "migraines",           "label": "Migraines" },
+            { "value": "insomnia",            "label": "Insomnia" },
+            { "value": "sleep_apnea",         "label": "Sleep Apnea" },
+            { "value": "depression",          "label": "Depression" },
+            { "value": "bipolar",             "label": "Bipolar Disorder / Mania" },
+            { "value": "emotional_dysreg",    "label": "Emotional Dysregulation" },
+            { "value": "suicidality",         "label": "Suicidality" },
+            { "value": "self_harm",           "label": "Self-Harming Behaviors" },
+            { "value": "eating_disorder",     "label": "Eating Disorder" },
+            { "value": "gender_dysphoria",    "label": "Gender Dysphoria" },
+            { "value": "addiction",           "label": "Addiction" },
+            { "value": "substance_use",       "label": "Substance Use Issues / Dependence" },
+            { "value": "physical_disability", "label": "Physical Disability" },
+            { "value": "post_injury_psych",   "label": "Emotional / Psychological Issues Secondary to Physical Injury" },
+            { "value": "other",               "label": "Other" },
+            { "value": "none",                "label": "None of these" },
+            { "value": "prefer_not",          "label": "Prefer not to say" }
+          ]
+        },
+
+        {
+          "type": "multiSelect",
+          "field": "ericaMeds",
+          "blockId": "ericaMedsBlock",
+          "skipIfReturning": true,
+          "required": false,
+          "question": "Are you currently taking any of the following medications?",
+          "hint": "Select all that apply. This is optional.",
+          "exclusiveValues": ["none", "prefer_not"],
+          "options": [
+            { "value": "stimulants",       "label": "Stimulants" },
+            { "value": "antidepressants",  "label": "Antidepressants" },
+            { "value": "mood_stabilizers", "label": "Mood Stabilizers" },
+            { "value": "anxiolytics",      "label": "Anti-Anxiety Medication / Sedatives" },
+            { "value": "sleep_meds",       "label": "Sleep Medications" },
+            { "value": "hrt",              "label": "Hormone Replacement Therapy (HRT)" },
+            { "value": "other",            "label": "Other" },
+            { "value": "none",             "label": "None" },
+            { "value": "prefer_not",       "label": "Prefer not to say" }
+          ]
+        }
+      ]
+    }
+  }
+}
