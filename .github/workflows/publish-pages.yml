@@ -32,6 +32,8 @@ jobs:
           touch public-site/.nojekyll
 
       - name: Publish gh-pages branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd public-site
           git init --initial-branch=gh-pages
