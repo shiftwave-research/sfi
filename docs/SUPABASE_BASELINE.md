@@ -12,7 +12,11 @@ The SFI backend currently depends on Supabase objects that should be captured as
 
 ## Required Migration Coverage
 
-Add migrations under `supabase/migrations/` for:
+The first remote schema baseline is committed at:
+
+- `supabase/migrations/20260612211500_remote_schema_baseline.sql`
+
+Future migrations should be added under `supabase/migrations/` for:
 
 - `sessions` table definition
 - `participant_keys` table definition
@@ -30,6 +34,6 @@ Add migrations under `supabase/migrations/` for:
 - addon key coverage by deployment
 - test rows tagged with `comment = '__SFI_TEST__'`
 
-## Current Gap
+## Remaining Gap
 
-The repository contains the Edge Function source but does not yet contain a reproducible database schema. Until migrations are added, a fresh Supabase project cannot be recreated from the repo alone.
+The repository now contains a baseline schema dump, but it has not yet been replay-tested against a fresh local Supabase stack. Before relying on it for disaster recovery or onboarding, run a local reset and verify that the Edge Function can submit, look up participants, and run the config test suite against the local stack.
