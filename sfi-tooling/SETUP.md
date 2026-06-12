@@ -17,16 +17,16 @@ dev branch    →  shiftwave-field-instrument.html   ← staging
 configs/      →  same on both branches             ← configs deploy from whichever branch serves
 ```
 
-**GitHub Pages serves from one branch at a time.** You can set this in Settings → Pages. The recommended approach is:
+**GitHub Pages serves the public instrument from `gh-pages`.** The private `main` branch contains source, tooling, Supabase code, and docs. The public `gh-pages` branch contains only browser-safe assets.
 
-- `main` → serves `https://shiftwave-research.github.io/sfi/` (live URL you give participants)
-- `dev` → use raw GitHub URL for testing: `https://raw.githack.com/shiftwave-research/sfi/dev/shiftwave-field-instrument.html?deployment=NAME`
-  - Or set up a second GitHub Pages site from the dev branch under a different path
+- `main` → source of truth; merge here only after validation
+- `gh-pages` → serves `https://cofactorsystems.github.io/shiftwave-field-instrument/`
+- `dev` → integration branch for work that is not ready for production
 
 **Clean-up steps:**
-1. Delete `sfi-v4.html` and `sfi-v5.html` from the `main` branch
-2. Create a `dev` branch from main: `git checkout -b dev`
-3. All new work happens on `dev`; merge to `main` only when verified
+1. Keep one canonical HTML file: `shiftwave-field-instrument.html`
+2. Keep deployment JSON in `configs/`
+3. Let `.github/workflows/publish-pages.yml` publish the public `gh-pages` payload after verified merges to `main`
 
 ### Day-to-day workflow
 
@@ -51,6 +51,7 @@ git push origin dev
 git checkout main
 git merge dev
 git push origin main
+# GitHub Actions validates the repo and publishes the public Pages payload
 ```
 
 ---
@@ -225,7 +226,7 @@ By default tests run against your production URL. To test against a dev build:
 
 ```bash
 # Edit .env:
-SFI_BASE_URL=https://raw.githack.com/shiftwave-research/sfi/dev
+SFI_BASE_URL=https://cofactorsystems.github.io/shiftwave-field-instrument
 # or your local server:
 SFI_BASE_URL=http://localhost:8080
 ```

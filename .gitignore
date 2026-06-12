@@ -1,1 +1,5 @@
 supabase/.temp/
+sfi-tooling/node_modules/
+sfi-tooling/.env
+sfi-tooling/playwright-report/
+sfi-tooling/test-results/

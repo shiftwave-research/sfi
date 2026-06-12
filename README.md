@@ -8,8 +8,8 @@ A single-page psychophysiological state survey deployed via QR code at Shiftwave
 
 | Purpose | URL |
 |---|---|
-| **Production** | `https://shiftwave-research.github.io/sfi/shiftwave-field-instrument.html?deployment=NAME` |
-| **Development / staging** | `https://shiftwave-research.github.io/sfi/sfi-v5.html?deployment=NAME` |
+| **Production** | `https://cofactorsystems.github.io/shiftwave-field-instrument/shiftwave-field-instrument.html?deployment=NAME` |
+| **Development / staging** | Use a branch preview or local server before merging to `main` |
 
 Replace `NAME` with the deployment identifier (e.g. `caa`, `lafd`, `spirit`).
 
@@ -24,7 +24,7 @@ Replace `NAME` with the deployment identifier (e.g. `caa`, `lafd`, `spirit`).
 | `mclaren` | Identified | `configs/mclaren.json` |
 | `lafd` | Anonymous | `configs/lafd.json` |
 | `randi` | Identified | `configs/randi.json` |
-| `womens_health_month` | Anonymous | `configs/womens_health_month.json` |
+| `womens-health-month` | Anonymous | `configs/womens-health-month.json` |
 | `suzanne` | Identified | `configs/suzanne.json` |
 
 ---
@@ -34,8 +34,8 @@ Replace `NAME` with the deployment identifier (e.g. `caa`, `lafd`, `spirit`).
 ```
 /
 ├── shiftwave-field-instrument.html   ← production HTML (do not edit directly)
-├── sfi-v5.html                       ← development / staging HTML
 ├── README.md                         ← this file
+├── .github/workflows/                ← validation and Pages publishing automation
 └── configs/
     ├── README.md                     ← deployment guide (start here to add a deployment)
     ├── caa.json
@@ -78,6 +78,7 @@ Addon questions (body region, burnout items, acceptability, demographic follow-u
 - Backend: Supabase Edge Function (`/functions/v1/sfi`) handling `lookup`, `submit`, and `checkSession`
 - Offline queue: failed submissions stored in `localStorage` and retried on reconnect
 - Two Supabase tables: `sessions` (analyst-accessible) and `participant_keys` (PII-restricted)
+- GitHub Pages publishes from `gh-pages`, containing only public browser assets (`shiftwave-field-instrument.html` and `configs/`)
 
 ---
 

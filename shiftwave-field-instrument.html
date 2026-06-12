@@ -2168,7 +2168,7 @@
         if (isFieldMode) {
             try {
                 showLoadingState();
-                const configRes = await fetch(`/sfi/configs/${deploymentId.toLowerCase()}.json`);
+                const configRes = await fetch(`configs/${deploymentId.toLowerCase()}.json`);
                 if (!configRes.ok) throw new Error('Config not found: ' + deploymentId);
                 const configData = await configRes.json();
                 activePreset = configData.preset || {};
@@ -3010,11 +3010,12 @@
                          + '\n                </div>';
 
                 case 'multiSelect':
-                    return '\n                <div class="addon-question-block">'
+                    return '\n                <div class="addon-question-block"' + (q.blockId ? ' id="' + q.blockId + '"' : '') + '>'
                          + '\n                    <div class="addon-question">' + q.question
                          + (q.hint ? ' <span style="font-size:0.75em;color:#888;font-weight:400;">' + q.hint + '</span>' : '')
                          + '</div>'
                          + '\n                    <div class="addon-ss-group" data-field="' + q.field + '" data-multiselect="true"'
+                         + (q.conditionalTarget ? ' data-conditional-target="' + q.conditionalTarget + '"' : '')
                          + (q.exclusiveValues ? ' data-exclusive-values=\'' + JSON.stringify(q.exclusiveValues) + '\'' : '')
                          + (q.exclusiveValue ? ' data-exclusive="' + q.exclusiveValue + '"' : '')
                          + '>\n                        '

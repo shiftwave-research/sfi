@@ -21,7 +21,7 @@
 const { test, expect } = require('@playwright/test');
 require('dotenv').config();
 
-const BASE_URL     = process.env.SFI_BASE_URL  || 'https://shiftwave-research.github.io/sfi';
+const BASE_URL     = process.env.SFI_BASE_URL  || 'https://cofactorsystems.github.io/shiftwave-field-instrument';
 const HTML         = process.env.SFI_HTML       || 'shiftwave-field-instrument.html';
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;

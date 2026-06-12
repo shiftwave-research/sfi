@@ -150,16 +150,14 @@ function crossReferenceChecks(config, errors) {
     }
   }
 
-  // 6. skipIfReturning requires blockId and conditionalTarget
+  // 6. skipIfReturning requires blockId. conditionalTarget is optional:
+  //    use it only when skipping the intake question should reveal a follow-up block.
   for (const [key, addon] of Object.entries(addons)) {
     if (!addon.questions) continue;
     for (const q of addon.questions) {
       if (q.skipIfReturning) {
         if (!q.blockId) {
           errors.push(`addons["${key}"]: skipIfReturning:true requires blockId to be set`);
-        }
-        if (!q.conditionalTarget) {
-          errors.push(`addons["${key}"]: skipIfReturning:true requires conditionalTarget to be set`);
         }
       }
     }

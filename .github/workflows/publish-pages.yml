@@ -1,0 +1,42 @@
+name: Publish GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - shiftwave-field-instrument.html
+      - configs/**
+      - .github/workflows/publish-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build public Pages payload
+        run: |
+          mkdir public-site
+          cp shiftwave-field-instrument.html public-site/
+          cp -R configs public-site/
+          touch public-site/.nojekyll
+
+      - name: Publish gh-pages branch
+        run: |
+          cd public-site
+          git init --initial-branch=gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Publish SFI static site from ${GITHUB_SHA}"
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

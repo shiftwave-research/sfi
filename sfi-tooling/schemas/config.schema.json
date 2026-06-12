@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://shiftwave-research.github.io/sfi/schemas/config.schema.json",
+  "$id": "https://cofactorsystems.github.io/shiftwave-field-instrument/schemas/config.schema.json",
   "title": "SFI Deployment Config",
   "description": "Schema for Shiftwave Field Instrument deployment configuration files",
   "type": "object",
@@ -176,6 +176,9 @@
               "question": { "type": "string", "minLength": 1 },
               "hint": { "type": "string" },
               "options": { "$ref": "#/definitions/optionsList" },
+              "blockId": { "type": "string" },
+              "skipIfReturning": { "type": "boolean" },
+              "conditionalTarget": { "type": "string" },
               "exclusiveValue": { "type": "string" },
               "exclusiveValues": { "type": "array", "items": { "type": "string" } },
               "required": { "type": "boolean" },

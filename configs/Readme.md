@@ -37,9 +37,8 @@ If you need a new question type, a new `insertAfter` anchor, or changes to the c
 Config files live in the `configs/` directory of the GitHub repository:
 
 ```
-shiftwave-research.github.io/sfi/
+CofactorSystems/shiftwave-field-instrument
 ├── shiftwave-field-instrument.html   ← production HTML (never edit)
-├── sfi-v5.html                       ← development/testing HTML
 └── configs/
     ├── caa.json
     ├── spirit.json
@@ -49,7 +48,7 @@ shiftwave-research.github.io/sfi/
     └── your_deployment.json          ← you create this
 ```
 
-**Naming convention:** lowercase, underscores for spaces, no special characters. The filename (without `.json`) becomes your deployment URL parameter.
+**Naming convention:** lowercase, hyphens or underscores for spaces, no special characters. The filename (without `.json`) becomes your deployment URL parameter.
 
 ---
 
@@ -57,12 +56,12 @@ shiftwave-research.github.io/sfi/
 
 **Production (live deployments):**
 ```
-https://shiftwave-research.github.io/sfi/shiftwave-field-instrument.html?deployment=your_deployment
+https://cofactorsystems.github.io/shiftwave-field-instrument/shiftwave-field-instrument.html?deployment=your_deployment
 ```
 
 **Development/testing:**
 ```
-https://shiftwave-research.github.io/sfi/sfi-v5.html?deployment=your_deployment
+Use a local server or branch preview before merging to `main`.
 ```
 
 Where `your_deployment` matches your config filename without `.json`. For example: `configs/spirit.json` → `?deployment=spirit`.
@@ -431,7 +430,7 @@ When `skipIfReturning: true`:
 2. In the GitHub repository, navigate to `configs/`
 3. Click **Add file → Create new file**, name it `your_deployment.json`
 4. Paste your JSON and commit
-5. Test at: `https://shiftwave-research.github.io/sfi/sfi-v5.html?deployment=your_deployment`
+5. Test locally or on a branch preview before merging to `main`
 6. When confirmed working, notify Wyatt to update the production QR code URL
 
 ---

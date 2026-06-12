@@ -1,0 +1,48 @@
+name: Validate SFI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+jobs:
+  config-and-smoke-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sfi-tooling
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate deployment configs
+        run: npm run validate
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Start local static server
+        working-directory: .
+        run: |
+          python3 -m http.server 8765 > /tmp/sfi-http.log 2>&1 &
+          sleep 1
+
+      - name: Run config-load smoke tests
+        run: npm run test:configs
+        env:
+          SFI_BASE_URL: http://127.0.0.1:8765
+          SFI_HTML: shiftwave-field-instrument.html
