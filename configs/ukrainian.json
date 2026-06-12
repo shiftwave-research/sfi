@@ -2,8 +2,8 @@
   "preset": {
     "displayName": "Shiftwave — Українська",
     "studyTag": "sfi_ukrainian_2026",
-    "anonymousMode": false,
-    "suppressFemaleHealthBlock": false,
+    "anonymousMode": true,
+    "suppressFemaleHealthBlock": true,
     "defaultProtocol": null,
     "addons": []
   },
