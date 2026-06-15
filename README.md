@@ -26,6 +26,7 @@ Replace `NAME` with the deployment identifier (e.g. `caa`, `lafd`, `spirit`).
 | `randi` | Identified | `configs/randi.json` |
 | `womens-health-month` | Anonymous | `configs/womens-health-month.json` |
 | `suzanne` | Identified | `configs/suzanne.json` |
+| `ukrainian` | Anonymous | `configs/ukrainian.json` |
 
 ---
 
