@@ -26,7 +26,10 @@ Replace `NAME` with the deployment identifier (e.g. `caa`, `lafd`, `spirit`).
 | `randi` | Identified | `configs/randi.json` |
 | `womens-health-month` | Anonymous | `configs/womens-health-month.json` |
 | `suzanne` | Identified | `configs/suzanne.json` |
-| `ukrainian` | Anonymous | `configs/ukrainian.json` |
+| `ukrainian` | Anonymous | `configs/ukrainian.json` * |
+
+\* The `ukrainian` deployment is served from the fully-translated build **`sfi-uk.html`** (not the default `shiftwave-field-instrument.html`). The config only translates the survey header; the core survey text is baked into the HTML, so a translated copy is required. Ukrainian URL:
+`https://cofactorsystems.github.io/shiftwave-field-instrument/sfi-uk.html?deployment=ukrainian`
 
 ---
 
