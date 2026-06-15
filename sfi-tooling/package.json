@@ -11,6 +11,9 @@
     "test:configs": "npx playwright test -g 'Config loads'",
     "test:submit": "npx playwright test -g 'Submission integrity'",
     "test:offline": "npx playwright test -g 'Offline'",
+    "qr:list": "node scripts/sync-qr-tiger.js list",
+    "qr:plan": "node scripts/sync-qr-tiger.js plan",
+    "qr:sync": "node scripts/sync-qr-tiger.js sync",
     "precommit": "node scripts/validate-config.js"
   },
   "dependencies": {

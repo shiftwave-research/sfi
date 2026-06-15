@@ -1,0 +1,20 @@
+{
+  "baseSfiUrl": "https://cofactorsystems.github.io/shiftwave-field-instrument/shiftwave-field-instrument.html",
+  "legacyBaseSfiUrl": "https://shiftwave-research.github.io/sfi/shiftwave-field-instrument.html",
+  "deployments": {
+    "banner_health_leadership_matters_event_2026": {},
+    "caa": {},
+    "cheatcode-playground": {},
+    "erica": {},
+    "lafd": {},
+    "mclaren": {},
+    "nflpa-longitudinal": {},
+    "orthohealing-anonymous": {},
+    "orthohealing-longitudinal": {},
+    "randi": {},
+    "spirit": {},
+    "suzanne": {},
+    "ukrainian": {},
+    "womens-health-month": {}
+  }
+}
