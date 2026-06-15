@@ -2,15 +2,39 @@
   "baseSfiUrl": "https://cofactorsystems.github.io/shiftwave-field-instrument/shiftwave-field-instrument.html",
   "legacyBaseSfiUrl": "https://shiftwave-research.github.io/sfi/shiftwave-field-instrument.html",
   "deployments": {
-    "banner_health_leadership_matters_event_2026": {},
-    "caa": {},
+    "banner_health_leadership_matters_event_2026": {
+      "label": "Banner Health",
+      "qrTigerId": "EUKQWA",
+      "qrTigerShortUrl": "https://qr1.be/EUKQWA"
+    },
+    "caa": {
+      "label": "SFI-CAA",
+      "qrTigerId": "XKMW1Y",
+      "qrTigerShortUrl": "https://qr1.be/XKMW1Y"
+    },
     "cheatcode-playground": {},
     "erica": {},
-    "lafd": {},
+    "lafd": {
+      "label": "SFI-LAFD-WWW",
+      "qrTigerId": "11ZAPM",
+      "qrTigerShortUrl": "https://qr1.be/11ZAPM"
+    },
     "mclaren": {},
-    "nflpa-longitudinal": {},
-    "orthohealing-anonymous": {},
-    "orthohealing-longitudinal": {},
+    "nflpa-longitudinal": {
+      "label": "SFI_nfl-pa_longitudinal",
+      "qrTigerId": "7B1ETR",
+      "qrTigerShortUrl": "https://qr1.be/7B1ETR"
+    },
+    "orthohealing-anonymous": {
+      "label": "SFI_orthohealing_anonymouse",
+      "qrTigerId": "5CNF94",
+      "qrTigerShortUrl": "https://qr1.be/5CNF94"
+    },
+    "orthohealing-longitudinal": {
+      "label": "SFI_orthohealing_longitudinal",
+      "qrTigerId": "062MOI",
+      "qrTigerShortUrl": "https://qr1.be/062MOI"
+    },
     "randi": {},
     "spirit": {},
     "suzanne": {},

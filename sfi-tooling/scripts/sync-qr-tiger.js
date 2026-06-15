@@ -11,12 +11,15 @@ const CONFIGS_DIR = path.join(ROOT_DIR, 'configs');
 const MANIFEST_PATH = path.join(__dirname, '../qr-tiger.manifest.json');
 const DEFAULT_BASE_URL = 'https://cofactorsystems.github.io/shiftwave-field-instrument/shiftwave-field-instrument.html';
 const DEFAULT_API_BASE_URL = 'https://api.qrtiger.com/api';
+const DEFAULT_LIST_PATH = '/campaign?limit=200&page=1';
+const DEFAULT_UPDATE_DYNAMIC_PATH = '/campaign/edit/{id}';
 
 function usage() {
   console.log(`SFI QR TIGER sync
 
 Usage:
   npm run qr:list
+  npm run qr:audit
   npm run qr:plan
   npm run qr:sync -- --dry-run
   npm run qr:sync -- --live
@@ -24,6 +27,7 @@ Usage:
 
 Commands:
   list   Show every deployment and its current public SFI URL.
+  audit  Compare the manifest with live QR TIGER campaign records.
   plan   Show which QR TIGER records are missing or need redirect updates.
   sync   Create/update QR TIGER records. Defaults to dry-run unless --live is passed.
 
@@ -111,8 +115,8 @@ function requireEnv(name) {
   return value;
 }
 
-function configuredPath(name) {
-  const value = process.env[name];
+function configuredPath(name, defaultValue = null) {
+  const value = process.env[name] || defaultValue;
   if (!value) {
     throw new Error(`${name} is not configured. Confirm the QR TIGER endpoint path before running live sync.`);
   }
@@ -153,13 +157,72 @@ async function requestQrTiger(method, pathTemplate, body, id) {
   return payload || {};
 }
 
-function qrPayload(record) {
+async function listQrTigerCampaigns() {
+  const listPath = process.env.QR_TIGER_LIST_PATH || DEFAULT_LIST_PATH;
+  const payload = await requestQrTiger('GET', listPath);
+  const campaigns = Array.isArray(payload)
+    ? payload
+    : payload.data || payload.qrCodes || payload.campaigns || payload.records || [];
+
+  if (!Array.isArray(campaigns)) {
+    throw new Error('QR TIGER list response did not include an array of campaigns');
+  }
+
+  return campaigns;
+}
+
+function updatePayload(record) {
   return {
-    name: record.label,
+    qrUrl: record.targetUrl
+  };
+}
+
+function createPayload(record) {
+  return {
     qrUrl: record.targetUrl,
-    type: 'url',
+    qrName: record.label,
+    qrCategory: 'url',
+    qrType: 'qr2',
     dynamic: true
   };
+}
+
+function extractCreatedRecord(created) {
+  const data = created.data || created.qr || created.campaign || created;
+  return {
+    qrTigerId: data.qrId || data.id || data._id || data.qrTigerId,
+    qrTigerShortUrl: data.shortUrl || data.qrTigerShortUrl
+  };
+}
+
+function printAudit(records, campaigns) {
+  const byQrId = new Map(campaigns.map(campaign => [campaign.qrId, campaign]));
+  const oldBase = 'https://shiftwave-research.github.io/sfi/shiftwave-field-instrument.html';
+  let manifestLegacyMatches = 0;
+
+  for (const record of records) {
+    const campaign = record.qrTigerId ? byQrId.get(record.qrTigerId) : null;
+    console.log(`${record.deployment}`);
+    console.log(`  manifest id: ${record.qrTigerId || '(missing)'}`);
+    if (!campaign) {
+      console.log('  live QR TIGER: (not found)');
+      continue;
+    }
+    console.log(`  live name: ${campaign.qrName || '(unnamed)'}`);
+    console.log(`  short: ${campaign.shortUrl || '(missing)'}`);
+    console.log(`  redirect: ${campaign.redirectUrl || '(missing)'}`);
+    if (campaign.redirectUrl && campaign.redirectUrl.startsWith(oldBase)) {
+      manifestLegacyMatches += 1;
+    }
+  }
+
+  const allLegacySfi = campaigns.filter(campaign =>
+    typeof campaign.redirectUrl === 'string' &&
+    campaign.redirectUrl.startsWith(oldBase)
+  );
+
+  console.log(`\nLegacy SFI URLs in manifest records: ${manifestLegacyMatches}`);
+  console.log(`Legacy SFI URLs in full QR TIGER account page: ${allLegacySfi.length}`);
 }
 
 async function sync(records, manifest, live) {
@@ -173,16 +236,15 @@ async function sync(records, manifest, live) {
     if (record.archived) continue;
 
     if (record.qrTigerId) {
-      const updatePath = configuredPath('QR_TIGER_UPDATE_DYNAMIC_PATH');
-      await requestQrTiger('PATCH', updatePath, qrPayload(record), record.qrTigerId);
+      const updatePath = configuredPath('QR_TIGER_UPDATE_DYNAMIC_PATH', DEFAULT_UPDATE_DYNAMIC_PATH);
+      await requestQrTiger('POST', updatePath, updatePayload(record), record.qrTigerId);
       console.log(`updated ${record.deployment}`);
       continue;
     }
 
     const createPath = configuredPath('QR_TIGER_CREATE_DYNAMIC_PATH');
-    const created = await requestQrTiger('POST', createPath, qrPayload(record));
-    const qrTigerId = created.id || created.qrTigerId || created.data?.id || created.data?.qrTigerId;
-    const qrTigerShortUrl = created.shortUrl || created.qrTigerShortUrl || created.data?.shortUrl || created.data?.qrTigerShortUrl;
+    const created = await requestQrTiger('POST', createPath, createPayload(record));
+    const { qrTigerId, qrTigerShortUrl } = extractCreatedRecord(created);
 
     if (!qrTigerId) {
       throw new Error(`QR TIGER create response for ${record.deployment} did not include an id`);
@@ -229,6 +291,12 @@ async function main() {
 
   if (command === 'list') {
     printRecords(records);
+    return;
+  }
+
+  if (command === 'audit') {
+    const campaigns = await listQrTigerCampaigns();
+    printAudit(records, campaigns);
     return;
   }
 
