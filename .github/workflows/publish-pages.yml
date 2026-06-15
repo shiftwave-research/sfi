@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - shiftwave-field-instrument.html
+      - sfi-uk.html
       - configs/**
       - .github/workflows/publish-pages.yml
   workflow_dispatch:
@@ -28,6 +29,7 @@ jobs:
         run: |
           mkdir public-site
           cp shiftwave-field-instrument.html public-site/
+          cp sfi-uk.html public-site/
           cp -R configs public-site/
           touch public-site/.nojekyll
 
