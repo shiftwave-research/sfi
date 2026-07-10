@@ -2168,7 +2168,7 @@
         if (isFieldMode) {
             try {
                 showLoadingState();
-                const configRes = await fetch(`configs/${deploymentId.toLowerCase()}.json`);
+                const configRes = await fetch(`/sfi/configs/${deploymentId.toLowerCase()}.json`);
                 if (!configRes.ok) throw new Error('Config not found: ' + deploymentId);
                 const configData = await configRes.json();
                 activePreset = configData.preset || {};
